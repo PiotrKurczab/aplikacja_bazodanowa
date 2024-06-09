@@ -102,3 +102,23 @@ class Database:
     def update_customer(self, customer_id, column, value):
         self.c.execute(f"UPDATE customers SET {column} = ? WHERE id = ?", (value, customer_id))
         self.conn.commit()
+    
+    def update_product(self, product_id, column, value):
+        self.c.execute(f"UPDATE products SET {column} = ? WHERE id = ?", (value, product_id))
+        self.conn.commit()
+
+    def update_order(self, order_id, column, value):
+        self.c.execute(f"UPDATE orders SET {column} = ? WHERE id = ?", (value, order_id))
+        self.conn.commit()
+
+    def update_supplier(self, supplier_id, column, value):
+        self.c.execute(f"UPDATE suppliers SET {column} = ? WHERE id = ?", (value, supplier_id))
+        self.conn.commit()
+
+    def update_order_amount(self, order_id, value):
+        self.c.execute("UPDATE orders SET amount = ? WHERE id = ?", (value, order_id))
+        self.conn.commit()
+
+    def update_order_date(self, order_id, value):
+        self.c.execute("UPDATE orders SET date = ? WHERE id = ?", (value, order_id))
+        self.conn.commit()

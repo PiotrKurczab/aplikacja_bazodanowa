@@ -32,11 +32,25 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
         main_layout.addWidget(self.tab_widget)
         
-        self.load_customers_data()
-        self.load_orders_data()
-        self.load_products_data()
-        self.load_suppliers_data()
-        self.load_join_data()
+        # Create buttons
+        add_button = QPushButton("Add")
+        delete_button = QPushButton("Delete")
+        export_button = QPushButton("Export")
+        import_button = QPushButton("Import")
+        
+        add_button.clicked.connect(self.add_customer)
+        delete_button.clicked.connect(self.delete_customers)
+        export_button.clicked.connect(self.export_customers)
+        import_button.clicked.connect(self.import_customers)
+        
+        button_layout = QHBoxLayout()
+        buttons = [add_button, delete_button, export_button, import_button]
+        for button in buttons:
+            button.setFixedWidth(100)
+            button_layout.addWidget(button)
+        main_layout.addLayout(button_layout)
+        
+        self.refresh_all_tabs()
     
     def create_customers_tab(self):
         self.customers_tab = QWidget()
@@ -76,24 +90,6 @@ class MainWindow(QMainWindow):
         self.customers_table_widget.setSortingEnabled(True)
         layout.addWidget(self.customers_table_widget)
         
-        # Create buttons
-        add_button = QPushButton("Add")
-        delete_button = QPushButton("Delete")
-        export_button = QPushButton("Export")
-        import_button = QPushButton("Import")
-        
-        add_button.clicked.connect(self.add_customer)
-        delete_button.clicked.connect(self.delete_customers)
-        export_button.clicked.connect(self.export_customers)
-        import_button.clicked.connect(self.import_customers)
-        
-        button_layout = QHBoxLayout()
-        buttons = [add_button, delete_button, export_button, import_button]
-        for button in buttons:
-            button.setFixedWidth(100)
-            button_layout.addWidget(button)
-        layout.addLayout(button_layout)
-        
         self.customers_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_customers)
         self.tab_widget.addTab(self.customers_tab, "Customers")
     
@@ -105,6 +101,7 @@ class MainWindow(QMainWindow):
         self.orders_table_widget.setSortingEnabled(True)
         layout.addWidget(self.orders_table_widget)
         
+        self.orders_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_orders)
         self.tab_widget.addTab(self.orders_tab, "Orders")
     
     def create_products_tab(self):
@@ -115,6 +112,7 @@ class MainWindow(QMainWindow):
         self.products_table_widget.setSortingEnabled(True)
         layout.addWidget(self.products_table_widget)
         
+        self.products_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_products)
         self.tab_widget.addTab(self.products_tab, "Products")
     
     def create_suppliers_tab(self):
@@ -125,6 +123,7 @@ class MainWindow(QMainWindow):
         self.suppliers_table_widget.setSortingEnabled(True)
         layout.addWidget(self.suppliers_table_widget)
         
+        self.suppliers_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_suppliers)
         self.tab_widget.addTab(self.suppliers_tab, "Suppliers")
     
     def create_join_tab(self):
@@ -135,6 +134,7 @@ class MainWindow(QMainWindow):
         self.join_table_widget.setSortingEnabled(True)
         layout.addWidget(self.join_table_widget)
         
+        self.join_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_join)
         self.tab_widget.addTab(self.join_tab, "Customer Orders")
 
     def load_customers_data(self):
@@ -190,6 +190,13 @@ class MainWindow(QMainWindow):
             for col_num, col_data in enumerate(row_data):
                 self.join_table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
 
+    def refresh_all_tabs(self):
+        self.load_customers_data()
+        self.load_orders_data()
+        self.load_products_data()
+        self.load_suppliers_data()
+        self.load_join_data()
+
     def add_customer(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("Add Customer")
@@ -218,7 +225,7 @@ class MainWindow(QMainWindow):
             city = city_input.text()
             
             self.db.insert_customer(name, email, phone, city)
-            self.load_customers_data()
+            self.refresh_all_tabs()
 
     def delete_customers(self):
         selected_items = self.customers_table_widget.selectedItems()
@@ -230,7 +237,7 @@ class MainWindow(QMainWindow):
                 record_id = self.customers_table_widget.item(row, 0).text()
                 self.db.delete_customer(record_id)
 
-            self.load_customers_data()
+            self.refresh_all_tabs()
         else:
             QMessageBox.warning(self, "Warning", "Please select a record to delete")
 
@@ -277,7 +284,7 @@ class MainWindow(QMainWindow):
         options = QFileDialog.Options()
         file_name, _ = QFileDialog.getOpenFileName(self, "Import CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
         if file_name:
-            with open(file_name, mode='r') as file:
+            with open(file_name, mode='r', encoding='utf-8') as file:
                 reader = csv.reader(file)
                 headers = next(reader)
                 records = [tuple(row) for row in reader]
@@ -287,7 +294,7 @@ class MainWindow(QMainWindow):
                     except sqlite3.Error as e:
                         print(f"Error importing record: {record}. {e}")
                 self.db.conn.commit()
-            self.load_customers_data()
+            self.refresh_all_tabs()
 
     def update_customers_table(self, records):
         self.customers_table_widget.setRowCount(len(records))
@@ -302,6 +309,22 @@ class MainWindow(QMainWindow):
         self.customers_table_widget.editItem(self.customers_table_widget.item(row, column))
         self.customers_table_widget.itemChanged.connect(self.update_database_customers)
 
+    def cell_double_clicked_orders(self, row, column):
+        self.orders_table_widget.editItem(self.orders_table_widget.item(row, column))
+        self.orders_table_widget.itemChanged.connect(self.update_database_orders)
+
+    def cell_double_clicked_products(self, row, column):
+        self.products_table_widget.editItem(self.products_table_widget.item(row, column))
+        self.products_table_widget.itemChanged.connect(self.update_database_products)
+
+    def cell_double_clicked_suppliers(self, row, column):
+        self.suppliers_table_widget.editItem(self.suppliers_table_widget.item(row, column))
+        self.suppliers_table_widget.itemChanged.connect(self.update_database_suppliers)
+
+    def cell_double_clicked_join(self, row, column):
+        self.join_table_widget.editItem(self.join_table_widget.item(row, column))
+        self.join_table_widget.itemChanged.connect(self.update_database_join)
+
     def update_database_customers(self, item):
         row = item.row()
         column = item.column()
@@ -312,6 +335,60 @@ class MainWindow(QMainWindow):
         
         self.db.update_customer(record_id, column_name, new_value)
         self.customers_table_widget.itemChanged.disconnect(self.update_database_customers)
+        self.refresh_all_tabs()
+
+    def update_database_orders(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.orders_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
+        new_value = item.text()
+
+        column_name = self.orders_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        self.db.update_order(record_id, column_name, new_value)
+        self.orders_table_widget.itemChanged.disconnect(self.update_database_orders)
+        self.refresh_all_tabs()
+
+    def update_database_products(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.products_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
+        new_value = item.text()
+
+        column_name = self.products_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        self.db.update_product(record_id, column_name, new_value)
+        self.products_table_widget.itemChanged.disconnect(self.update_database_products)
+        self.refresh_all_tabs()
+
+    def update_database_suppliers(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.suppliers_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
+        new_value = item.text()
+
+        column_name = self.suppliers_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        self.db.update_supplier(record_id, column_name, new_value)
+        self.suppliers_table_widget.itemChanged.disconnect(self.update_database_suppliers)
+        self.refresh_all_tabs()
+
+    def update_database_join(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.join_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
+        new_value = item.text()
+
+        column_name = self.join_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        # Assume we need to update multiple tables for join changes
+        if column_name == "order amount":
+            self.db.update_order_amount(record_id, new_value)
+        elif column_name == "order date":
+            self.db.update_order_date(record_id, new_value)
+        
+        self.join_table_widget.itemChanged.disconnect(self.update_database_join)
+        self.refresh_all_tabs()
 
 def main():
     app = QApplication(sys.argv)
