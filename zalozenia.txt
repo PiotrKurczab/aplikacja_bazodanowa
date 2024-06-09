@@ -1,0 +1,54 @@
+Based on the description, create an application and related things. Implement absolutely everything. Don't leave a single line blank. Create a nice, modern GUI, for example with Tkinter. It has to be absolutely perfect. Describe every step, every file, every structure. Implement every method, don't leave it blank.
+
+
+Założenia do projektu "Aplikacja bazodanowa w Pythonie"
+ 
+1. Cel projektu
+
+Celem projektu jest stworzenie aplikacji bazodanowej w języku Python, która będzie realizowała funkcje związane z obsługą bazy danych (sqlite3). Aplikacja będzie posiadała graficzny interfejs użytkownika, który będzie umożliwiał wykonywanie operacji CRUD na bazie danych.
+
+Aplikacja będzie realizowała funkcje związane z obsługą bazy danych. Będzie posiadała graficzny interfejs użytkownika, który będzie umożliwiał wykonywanie operacji na bazie danych. Aplikacja będzie posiadała następujące funkcje:
+
+    dodawanie nowych rekordów do bazy danych,
+    usuwanie rekordów z bazy danych,
+    edycja rekordów w bazie danych,
+    wyświetlanie rekordów z bazy danych,
+    wyszukiwanie rekordów w bazie danych,
+    sortowanie rekordów w bazie danych,
+    filtrowanie rekordów w bazie danych,
+    eksportowanie rekordów z bazy danych do pliku CSV.
+    importowanie rekordów z pliku CSV do bazy danych.
+
+ 
+3. Wymagania formalne
+
+Projekt realizowany w zespołach maksymalnie 2-osobowych (metodyka pair-programming). Projekt powinien być realizowany w oparciu o repozytorium GitHub. W repozytorium powinny znajdować się wszystkie pliki projektu, w tym kod źródłowy, dokumentacja, testy jednostkowe, itp. Wszystkie pliki powinny być opatrzone odpowiednimi komentarzami. Wybrane funkcje powinny być opatrzone testami jednostkowymi.
+
+    Baza danych składa się z co najmniej 4 tabel.
+    Każda tabela zawiera co najmniej 5 rekordów.
+    Aplikacja posiada graficzny interfejs użytkownika (np. Tkinter, PySimpleGUI lub jako aplikacja webowa).
+    Aplikacja składa się z co najmniej 2 plików Pythona.
+    Co najmniej jeden z formularzy aplikacji prezentuje dane pochodzące z połączenia dwóch lub więcej tabel.
+    Dokumentacja projektu (plik PDF) zawiera:
+        opis funkcjonalności aplikacji, kilka akapitów tekstu,
+        opis struktury bazy danych, diagram ERD,
+        kod SQL tworzący bazę danych,
+        kod SQL wypełniający bazę danych przykładowymi danymi,
+        kod źródłowy aplikacji, wraz z komentarzami,
+        testy jednostkowe wybranych fragmentów kodu,
+        wygenerowana dokumentacja kodu (np. pydoc, doxygen),
+        instrukcja instalacji i uruchomienia aplikacji,
+        instrukcja użytkowania aplikacji.
+
+ 
+4. Ocena projektu
+
+Do oceny zgłaszasz dokumentację w pliku PDF oraz link do repozytorium z projektem. Projekt oceniany jest w skali 0-100 punktów. Ocena z projektu jest sumą ocen z poszczególnych kryteriów:
+
+    dokumentacja projektu (0-30 pkt) - merytoryczna poprawność, jakość, estetyka
+    struktura bazy danych, kod SQL tworzący bazę danych i ją wypełniający (0-20 pkt),
+    jakość kodu źródłowego aplikacji (0-20 pkt),
+    atrakcyjność graficznego interfejsu użytkownika (0-10 pkt)
+    testy jednostkowe wybranych fragmentów kodu (0-10 pkt),
+    wygenerowana dokumentacja kodu (0-5 pkt),
+    instrukcja instalacji i uruchomienia aplikacji, instrukcja użytkownika (0-5 pkt),
