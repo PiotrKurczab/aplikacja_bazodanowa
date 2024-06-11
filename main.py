@@ -50,7 +50,11 @@ class MainWindow(QMainWindow):
             button_layout.addWidget(button)
         main_layout.addLayout(button_layout)
         
-        self.refresh_all_tabs()
+        self.load_customers_data()
+        self.load_orders_data()
+        self.load_products_data()
+        self.load_suppliers_data()
+        self.load_join_data()
     
     def create_customers_tab(self):
         self.customers_tab = QWidget()
@@ -101,7 +105,6 @@ class MainWindow(QMainWindow):
         self.orders_table_widget.setSortingEnabled(True)
         layout.addWidget(self.orders_table_widget)
         
-        self.orders_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_orders)
         self.tab_widget.addTab(self.orders_tab, "Orders")
     
     def create_products_tab(self):
@@ -112,7 +115,6 @@ class MainWindow(QMainWindow):
         self.products_table_widget.setSortingEnabled(True)
         layout.addWidget(self.products_table_widget)
         
-        self.products_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_products)
         self.tab_widget.addTab(self.products_tab, "Products")
     
     def create_suppliers_tab(self):
@@ -123,7 +125,6 @@ class MainWindow(QMainWindow):
         self.suppliers_table_widget.setSortingEnabled(True)
         layout.addWidget(self.suppliers_table_widget)
         
-        self.suppliers_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_suppliers)
         self.tab_widget.addTab(self.suppliers_tab, "Suppliers")
     
     def create_join_tab(self):
@@ -134,7 +135,6 @@ class MainWindow(QMainWindow):
         self.join_table_widget.setSortingEnabled(True)
         layout.addWidget(self.join_table_widget)
         
-        self.join_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_join)
         self.tab_widget.addTab(self.join_tab, "Customer Orders")
 
     def load_customers_data(self):
@@ -309,22 +309,6 @@ class MainWindow(QMainWindow):
         self.customers_table_widget.editItem(self.customers_table_widget.item(row, column))
         self.customers_table_widget.itemChanged.connect(self.update_database_customers)
 
-    def cell_double_clicked_orders(self, row, column):
-        self.orders_table_widget.editItem(self.orders_table_widget.item(row, column))
-        self.orders_table_widget.itemChanged.connect(self.update_database_orders)
-
-    def cell_double_clicked_products(self, row, column):
-        self.products_table_widget.editItem(self.products_table_widget.item(row, column))
-        self.products_table_widget.itemChanged.connect(self.update_database_products)
-
-    def cell_double_clicked_suppliers(self, row, column):
-        self.suppliers_table_widget.editItem(self.suppliers_table_widget.item(row, column))
-        self.suppliers_table_widget.itemChanged.connect(self.update_database_suppliers)
-
-    def cell_double_clicked_join(self, row, column):
-        self.join_table_widget.editItem(self.join_table_widget.item(row, column))
-        self.join_table_widget.itemChanged.connect(self.update_database_join)
-
     def update_database_customers(self, item):
         row = item.row()
         column = item.column()
@@ -335,59 +319,6 @@ class MainWindow(QMainWindow):
         
         self.db.update_customer(record_id, column_name, new_value)
         self.customers_table_widget.itemChanged.disconnect(self.update_database_customers)
-        self.refresh_all_tabs()
-
-    def update_database_orders(self, item):
-        row = item.row()
-        column = item.column()
-        record_id = self.orders_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
-        new_value = item.text()
-
-        column_name = self.orders_table_widget.horizontalHeaderItem(column).text().lower()
-        
-        self.db.update_order(record_id, column_name, new_value)
-        self.orders_table_widget.itemChanged.disconnect(self.update_database_orders)
-        self.refresh_all_tabs()
-
-    def update_database_products(self, item):
-        row = item.row()
-        column = item.column()
-        record_id = self.products_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
-        new_value = item.text()
-
-        column_name = self.products_table_widget.horizontalHeaderItem(column).text().lower()
-        
-        self.db.update_product(record_id, column_name, new_value)
-        self.products_table_widget.itemChanged.disconnect(self.update_database_products)
-        self.refresh_all_tabs()
-
-    def update_database_suppliers(self, item):
-        row = item.row()
-        column = item.column()
-        record_id = self.suppliers_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
-        new_value = item.text()
-
-        column_name = self.suppliers_table_widget.horizontalHeaderItem(column).text().lower()
-        
-        self.db.update_supplier(record_id, column_name, new_value)
-        self.suppliers_table_widget.itemChanged.disconnect(self.update_database_suppliers)
-        self.refresh_all_tabs()
-
-    def update_database_join(self, item):
-        row = item.row()
-        column = item.column()
-        record_id = self.join_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
-        new_value = item.text()
-
-        column_name = self.join_table_widget.horizontalHeaderItem(column).text().lower()
-        
-        # Assume we need to update multiple tables for join changes
-        if column_name == "order amount":
-            self.db.update_order_amount(record_id, new_value)
-        elif column_name == "order date":
-            self.db.update_order_date(record_id, new_value)
-        
-        self.join_table_widget.itemChanged.disconnect(self.update_database_join)
         self.refresh_all_tabs()
 
 def main():
