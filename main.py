@@ -115,6 +115,7 @@ class MainWindow(QMainWindow):
         self.products_table_widget.setSortingEnabled(True)
         layout.addWidget(self.products_table_widget)
         
+        self.products_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_products)
         self.tab_widget.addTab(self.products_tab, "Products")
     
     def create_suppliers_tab(self):
@@ -151,8 +152,8 @@ class MainWindow(QMainWindow):
         self.db.c.execute("SELECT * FROM orders")
         records = self.db.c.fetchall()
         self.orders_table_widget.setRowCount(len(records))
-        self.orders_table_widget.setColumnCount(5)
-        self.orders_table_widget.setHorizontalHeaderLabels(["ID", "Customer ID", "Date", "Amount", "Status"])
+        self.orders_table_widget.setColumnCount(6)
+        self.orders_table_widget.setHorizontalHeaderLabels(["ID", "Customer ID", "Product ID", "Date", "Amount", "Status"])
         
         for row_num, row_data in enumerate(records):
             for col_num, col_data in enumerate(row_data):
@@ -319,6 +320,25 @@ class MainWindow(QMainWindow):
         
         self.db.update_customer(record_id, column_name, new_value)
         self.customers_table_widget.itemChanged.disconnect(self.update_database_customers)
+        self.refresh_all_tabs()
+
+    def cell_double_clicked_products(self, row, column):
+        self.products_table_widget.editItem(self.products_table_widget.item(row, column))
+        self.products_table_widget.itemChanged.connect(self.update_database_products)
+
+    def update_database_products(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.products_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
+        new_value = item.text()
+
+        column_name = self.products_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        self.db.update_product(record_id, column_name, new_value)
+        if column_name == 'price':
+            self.db.update_orders_after_product_price_change(record_id, new_value)
+        
+        self.products_table_widget.itemChanged.disconnect(self.update_database_products)
         self.refresh_all_tabs()
 
 def main():

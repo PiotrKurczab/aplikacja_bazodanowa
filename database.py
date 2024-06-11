@@ -15,11 +15,13 @@ class Database:
                             city TEXT)''')
         self.c.execute('''CREATE TABLE IF NOT EXISTS orders (
                             id INTEGER PRIMARY KEY, 
-                            customer_id INTEGER, 
+                            customer_id INTEGER,
+                            product_id INTEGER,
                             date TEXT, 
                             amount REAL, 
                             status TEXT,
-                            FOREIGN KEY(customer_id) REFERENCES customers(id))''')
+                            FOREIGN KEY(customer_id) REFERENCES customers(id),
+                            FOREIGN KEY(product_id) REFERENCES products(id))''')
         self.c.execute('''CREATE TABLE IF NOT EXISTS products (
                             id INTEGER PRIMARY KEY, 
                             name TEXT, 
@@ -51,13 +53,13 @@ class Database:
         ]
         
         orders = [
-            (1, 1, '2023-06-01', 2499.99, 'Zrealizowane'),
-            (2, 2, '2023-06-02', 499.99, 'W realizacji'),
-            (3, 3, '2023-06-03', 1299.99, 'Dostarczone'),
-            (4, 4, '2023-06-04', 899.99, 'Anulowane'),
-            (5, 5, '2023-06-05', 399.99, 'Zwrócone')
+            (1, 1, 1, '2023-06-01', 2499.99, 'Zrealizowane'),
+            (2, 2, 2, '2023-06-02', 499.99, 'W realizacji'),
+            (3, 3, 3, '2023-06-03', 1299.99, 'Dostarczone'),
+            (4, 4, 4, '2023-06-04', 899.99, 'Anulowane'),
+            (5, 5, 5, '2023-06-05', 399.99, 'Zwrócone')
         ]
-    
+
         products = [
             (1, 'Smartfon XYZ', 'Elektronika', 2499.99, 15),
             (2, 'Laptop GamePro', 'Elektronika', 4999.99, 8),
@@ -65,7 +67,7 @@ class Database:
             (4, 'Monitor UltraHD', 'Elektronika', 1499.99, 12),
             (5, 'Drukarka LaserPro', 'Biuro', 399.99, 25)
         ]
-    
+
         suppliers = [
             (1, 'TechPro Sp. z o.o.', 'info@techpro.pl', 'ul. Innowacyjna 1, Warszawa', 'zakupy@techpro.pl'),
             (2, 'GadgetMasters S.A.', 'kontakt@gadgetmasters.pl', 'Al. Cyfrowa 10, Kraków', 'zamowienia@gadgetmasters.pl'),
@@ -76,10 +78,11 @@ class Database:
 
         # Populate tables
         self.c.executemany("INSERT INTO customers VALUES (?, ?, ?, ?, ?)", customers)
-        self.c.executemany("INSERT INTO orders VALUES (?, ?, ?, ?, ?)", orders)
+        self.c.executemany("INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?)", orders)
         self.c.executemany("INSERT INTO products VALUES (?, ?, ?, ?, ?)", products)
         self.c.executemany("INSERT INTO suppliers VALUES (?, ?, ?, ?, ?)", suppliers)
         self.conn.commit()
+
 
     def fetch_all_customers(self):
         self.c.execute("SELECT * FROM customers")
@@ -108,7 +111,10 @@ class Database:
         self.conn.commit()
 
     def update_order(self, order_id, column, value):
-        self.c.execute(f"UPDATE orders SET {column} = ? WHERE id = ?", (value, order_id))
+        if column == "amount":
+            self.c.execute("UPDATE orders SET amount = ? WHERE id = ?", (value, order_id))
+        else:
+            self.c.execute(f"UPDATE orders SET {column} = ? WHERE id = ?", (value, order_id))
         self.conn.commit()
 
     def update_supplier(self, supplier_id, column, value):
@@ -121,4 +127,8 @@ class Database:
 
     def update_order_date(self, order_id, value):
         self.c.execute("UPDATE orders SET date = ? WHERE id = ?", (value, order_id))
+        self.conn.commit()
+    
+    def update_orders_after_product_price_change(self, product_id, new_price):
+        self.c.execute('''UPDATE orders SET amount = ? WHERE product_id = ?''', (new_price, product_id))
         self.conn.commit()
