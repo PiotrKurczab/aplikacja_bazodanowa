@@ -38,10 +38,10 @@ class MainWindow(QMainWindow):
         export_button = QPushButton("Export")
         import_button = QPushButton("Import")
         
-        add_button.clicked.connect(self.add_customer)
-        delete_button.clicked.connect(self.delete_customers)
-        export_button.clicked.connect(self.export_customers)
-        import_button.clicked.connect(self.import_customers)
+        add_button.clicked.connect(self.add_record)
+        delete_button.clicked.connect(self.delete_record)
+        export_button.clicked.connect(self.export_database)
+        import_button.clicked.connect(self.import_database)
         
         button_layout = QHBoxLayout()
         buttons = [add_button, delete_button, export_button, import_button]
@@ -198,6 +198,34 @@ class MainWindow(QMainWindow):
         self.load_suppliers_data()
         self.load_join_data()
 
+    def add_record(self):
+        current_tab = self.tab_widget.currentWidget()
+        
+        if current_tab == self.customers_tab:
+            self.add_customer()
+        elif current_tab == self.orders_tab:
+            self.add_order()
+        elif current_tab == self.products_tab:
+            self.add_product()
+        elif current_tab == self.suppliers_tab:
+            self.add_supplier()
+        else:
+            QMessageBox.warning(self, "Warning", "Add operation not supported for this tab")
+
+    def delete_record(self):
+        current_tab = self.tab_widget.currentWidget()
+        
+        if current_tab == self.customers_tab:
+            self.delete_customers()
+        elif current_tab == self.orders_tab:
+            self.delete_orders()
+        elif current_tab == self.products_tab:
+            self.delete_products()
+        elif current_tab == self.suppliers_tab:
+            self.delete_suppliers()
+        else:
+            QMessageBox.warning(self, "Warning", "Delete operation not supported for this tab")
+
     def add_customer(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("Add Customer")
@@ -242,6 +270,189 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.warning(self, "Warning", "Please select a record to delete")
 
+    def add_order(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Order")
+        
+        layout = QFormLayout(dialog)
+        
+        customer_id_input = QLineEdit()
+        product_id_input = QLineEdit()
+        date_input = QLineEdit()
+        amount_input = QLineEdit()
+        status_input = QLineEdit()
+        
+        layout.addRow("Customer ID:", customer_id_input)
+        layout.addRow("Product ID:", product_id_input)
+        layout.addRow("Date:", date_input)
+        layout.addRow("Amount:", amount_input)
+        layout.addRow("Status:", status_input)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            customer_id = customer_id_input.text()
+            product_id = product_id_input.text()
+            date = date_input.text()
+            amount = amount_input.text()
+            status = status_input.text()
+            
+            self.db.c.execute("INSERT INTO orders (customer_id, product_id, date, amount, status) VALUES (?, ?, ?, ?, ?)", 
+                              (customer_id, product_id, date, amount, status))
+            self.db.conn.commit()
+            self.refresh_all_tabs()
+
+    def delete_orders(self):
+        selected_items = self.orders_table_widget.selectedItems()
+        if selected_items:
+            rows = list(set(item.row() for item in selected_items))
+            rows.sort(reverse=True)  # Sortujemy odwrotnie, aby usuwać od końca
+
+            for row in rows:
+                record_id = self.orders_table_widget.item(row, 0).text()
+                self.db.c.execute("DELETE FROM orders WHERE id = ?", (record_id,))
+                self.db.conn.commit()
+
+            self.refresh_all_tabs()
+        else:
+            QMessageBox.warning(self, "Warning", "Please select a record to delete")
+
+    def add_product(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Product")
+        
+        layout = QFormLayout(dialog)
+        
+        name_input = QLineEdit()
+        category_input = QLineEdit()
+        price_input = QLineEdit()
+        stock_input = QLineEdit()
+        
+        layout.addRow("Name:", name_input)
+        layout.addRow("Category:", category_input)
+        layout.addRow("Price:", price_input)
+        layout.addRow("Stock:", stock_input)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            name = name_input.text()
+            category = category_input.text()
+            price = price_input.text()
+            stock = stock_input.text()
+            
+            self.db.c.execute("INSERT INTO products (name, category, price, stock) VALUES (?, ?, ?, ?, ?)", 
+                              (name, category, price, stock))
+            self.db.conn.commit()
+            self.refresh_all_tabs()
+
+    def delete_products(self):
+        selected_items = self.products_table_widget.selectedItems()
+        if selected_items:
+            rows = list(set(item.row() for item in selected_items))
+            rows.sort(reverse=True)  # Sortujemy odwrotnie, aby usuwać od końca
+
+            for row in rows:
+                record_id = self.products_table_widget.item(row, 0).text()
+                self.db.c.execute("DELETE FROM products WHERE id = ?", (record_id,))
+                self.db.conn.commit()
+
+            self.refresh_all_tabs()
+        else:
+            QMessageBox.warning(self, "Warning", "Please select a record to delete")
+
+    def add_supplier(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Supplier")
+        
+        layout = QFormLayout(dialog)
+        
+        name_input = QLineEdit()
+        contact_input = QLineEdit()
+        address_input = QLineEdit()
+        email_input = QLineEdit()
+        
+        layout.addRow("Name:", name_input)
+        layout.addRow("Contact:", contact_input)
+        layout.addRow("Address:", address_input)
+        layout.addRow("Email:", email_input)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            name = name_input.text()
+            contact = contact_input.text()
+            address = address_input.text()
+            email = email_input.text()
+            
+            self.db.c.execute("INSERT INTO suppliers (name, contact, address, email) VALUES (?, ?, ?, ?, ?)", 
+                              (name, contact, address, email))
+            self.db.conn.commit()
+            self.refresh_all_tabs()
+
+    def delete_suppliers(self):
+        selected_items = self.suppliers_table_widget.selectedItems()
+        if selected_items:
+            rows = list(set(item.row() for item in selected_items))
+            rows.sort(reverse=True)  # Sortujemy odwrotnie, aby usuwać od końca
+
+            for row in rows:
+                record_id = self.suppliers_table_widget.item(row, 0).text()
+                self.db.c.execute("DELETE FROM suppliers WHERE id = ?", (record_id,))
+                self.db.conn.commit()
+
+            self.refresh_all_tabs()
+        else:
+            QMessageBox.warning(self, "Warning", "Please select a record to delete")
+
+    def export_database(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        if file_name:
+            tables = ["customers", "orders", "products", "suppliers"]
+            with open(file_name, mode='w', newline='', encoding='utf-8') as file:
+                writer = csv.writer(file)
+                for table in tables:
+                    self.db.c.execute(f"SELECT * FROM {table}")
+                    records = self.db.c.fetchall()
+                    writer.writerow([table])
+                    writer.writerow([i[0] for i in self.db.c.description])
+                    writer.writerows(records)
+                    writer.writerow([])  # Dodajemy pusty wiersz między tabelami
+            QMessageBox.information(self, "Export", f"Exported to {file_name}")
+
+    def import_database(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Import CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        if file_name:
+            with open(file_name, mode='r', encoding='utf-8') as file:
+                reader = csv.reader(file)
+                table = None
+                for row in reader:
+                    if not row:
+                        continue
+                    if row[0] in ["customers", "orders", "products", "suppliers"]:
+                        table = row[0]
+                        headers = next(reader)  # Skip the headers
+                    else:
+                        try:
+                            columns = ', '.join(headers)
+                            placeholders = ', '.join(['?' for _ in headers])
+                            self.db.c.execute(f"INSERT OR REPLACE INTO {table} ({columns}) VALUES ({placeholders})", row)
+                        except sqlite3.Error as e:
+                            print(f"Error importing record: {row}. {e}")
+                self.db.conn.commit()
+            self.refresh_all_tabs()
+
     def search_customers(self, text):
         self.db.c.execute("SELECT * FROM customers WHERE name LIKE ?", ('%' + text + '%',))
         records = self.db.c.fetchall()
@@ -268,34 +479,6 @@ class MainWindow(QMainWindow):
         self.db.c.execute(query, params)
         records = self.db.c.fetchall()
         self.update_customers_table(records)
-
-    def export_customers(self):
-        options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
-        if file_name:
-            with open(file_name, mode='w', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                self.db.c.execute("SELECT * FROM customers")
-                records = self.db.c.fetchall()
-                writer.writerow([i[0] for i in self.db.c.description])
-                writer.writerows(records)
-            QMessageBox.information(self, "Export", f"Exported to {file_name}")
-
-    def import_customers(self):
-        options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getOpenFileName(self, "Import CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
-        if file_name:
-            with open(file_name, mode='r', encoding='utf-8') as file:
-                reader = csv.reader(file)
-                headers = next(reader)
-                records = [tuple(row) for row in reader]
-                for record in records:
-                    try:
-                        self.db.c.execute("INSERT OR REPLACE INTO customers VALUES (?, ?, ?, ?, ?)", record)
-                    except sqlite3.Error as e:
-                        print(f"Error importing record: {record}. {e}")
-                self.db.conn.commit()
-            self.refresh_all_tabs()
 
     def update_customers_table(self, records):
         self.customers_table_widget.setRowCount(len(records))
