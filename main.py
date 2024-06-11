@@ -1,9 +1,14 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QVBoxLayout, QHBoxLayout, QWidget, QTableWidget, QPushButton, QLineEdit, QLabel, QTableWidgetItem, QDialog, QDialogButtonBox, QFormLayout, QMessageBox, QFileDialog
-from PyQt5.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QTabWidget, QVBoxLayout, QHBoxLayout, QWidget,
+    QTableWidget, QPushButton, QLineEdit, QLabel, QTableWidgetItem, QDialog,
+    QDialogButtonBox, QFormLayout, QMessageBox, QFileDialog
+)
+from PyQt6.QtCore import Qt
 import csv
 from database import Database
 import sqlite3
+import qdarktheme
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -242,12 +247,12 @@ class MainWindow(QMainWindow):
         layout.addRow("Phone:", phone_input)
         layout.addRow("City:", city_input)
         
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, dialog)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             name = name_input.text()
             email = email_input.text()
             phone = phone_input.text()
@@ -288,12 +293,12 @@ class MainWindow(QMainWindow):
         layout.addRow("Amount:", amount_input)
         layout.addRow("Status:", status_input)
         
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, dialog)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             customer_id = customer_id_input.text()
             product_id = product_id_input.text()
             date = date_input.text()
@@ -336,12 +341,12 @@ class MainWindow(QMainWindow):
         layout.addRow("Price:", price_input)
         layout.addRow("Stock:", stock_input)
         
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, dialog)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             name = name_input.text()
             category = category_input.text()
             price = price_input.text()
@@ -383,12 +388,12 @@ class MainWindow(QMainWindow):
         layout.addRow("Address:", address_input)
         layout.addRow("Email:", email_input)
         
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, dialog)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             name = name_input.text()
             contact = contact_input.text()
             address = address_input.text()
@@ -415,8 +420,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please select a record to delete")
 
     def export_database(self):
-        options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv);;All Files (*)")
         if file_name:
             tables = ["customers", "orders", "products", "suppliers"]
             with open(file_name, mode='w', newline='', encoding='utf-8') as file:
@@ -431,18 +435,20 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Export", f"Exported to {file_name}")
 
     def import_database(self):
-        options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getOpenFileName(self, "Import CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        file_name, _ = QFileDialog.getOpenFileName(self, "Import CSV File", "", "CSV Files (*.csv);;All Files (*)")
         if file_name:
             with open(file_name, mode='r', encoding='utf-8') as file:
                 reader = csv.reader(file)
                 table = None
+                headers = None
+                self.db.conn.execute("PRAGMA foreign_keys = OFF;")
                 for row in reader:
                     if not row:
                         continue
                     if row[0] in ["customers", "orders", "products", "suppliers"]:
                         table = row[0]
                         headers = next(reader)  # Skip the headers
+                        self.db.c.execute(f"DELETE FROM {table}")  # Clear old data
                     else:
                         try:
                             columns = ', '.join(headers)
@@ -451,6 +457,7 @@ class MainWindow(QMainWindow):
                         except sqlite3.Error as e:
                             print(f"Error importing record: {row}. {e}")
                 self.db.conn.commit()
+                self.db.conn.execute("PRAGMA foreign_keys = ON;")
             self.refresh_all_tabs()
 
     def search_customers(self, text):
@@ -527,8 +534,10 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     mainWin = MainWindow()
+    qdarktheme.setup_theme("auto")
+    
     mainWin.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()
