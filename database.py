@@ -128,3 +128,25 @@ class Database:
                                     FROM orders 
                                     WHERE id = ?)''', (new_price, order_id))
         self.conn.commit()
+
+    def update_customer_name_in_orders(self, customer_id, new_name):
+        self.c.execute('''UPDATE orders 
+                          SET customer_name = ? 
+                          WHERE customer_id = ?''', (new_name, customer_id))
+        self.conn.commit()
+
+    def update_order_amount_in_customer_orders(self, order_id, new_amount):
+        self.c.execute('''UPDATE customer_orders 
+                          SET order_amount = ? 
+                          WHERE order_id = ?''', (new_amount, order_id))
+        self.conn.commit()
+
+    def update_product_price_in_customer_orders(self, product_id, new_price):
+        self.c.execute('''UPDATE customer_orders 
+                          SET product_price = ? 
+                          WHERE product_id = ?''', (new_price, product_id))
+        self.conn.commit()
+
+    def get_product_id_from_order(self, order_id):
+        self.c.execute('''SELECT product_id FROM orders WHERE id = ?''', (order_id,))
+        return self.c.fetchone()[0]

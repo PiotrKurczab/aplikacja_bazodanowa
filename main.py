@@ -7,8 +7,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 import csv
 from database import Database
-import qdarktheme
 import sqlite3
+import qdarktheme
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -27,158 +27,396 @@ class MainWindow(QMainWindow):
         self.tab_widget = QTabWidget()
         
         # Create tabs
-        self.create_tab("Customers", self.create_customers_tab, self.load_data)
-        self.create_tab("Orders", self.create_orders_tab, self.load_data)
-        self.create_tab("Products", self.create_products_tab, self.load_data)
-        self.create_tab("Suppliers", self.create_suppliers_tab, self.load_data)
-        self.create_tab("Customer Orders", self.create_join_tab, self.load_join_data)
+        self.create_customers_tab()
+        self.create_orders_tab()
+        self.create_products_tab()
+        self.create_suppliers_tab()
+        self.create_join_tab()
         
         # Create a layout and add the tab widget
         main_layout = QVBoxLayout(central_widget)
         main_layout.addWidget(self.tab_widget)
         
         # Create buttons
-        self.create_buttons(main_layout)
+        add_button = QPushButton("Add")
+        delete_button = QPushButton("Delete")
+        export_button = QPushButton("Export")
+        import_button = QPushButton("Import")
         
-        self.refresh_all_tabs()
-    
-    def create_tab(self, name, create_method, load_method):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        create_method(layout)
-        self.tab_widget.addTab(tab, name)
-        load_method(name.lower())
-    
-    def create_buttons(self, layout):
+        add_button.clicked.connect(self.add_record)
+        delete_button.clicked.connect(self.delete_record)
+        export_button.clicked.connect(self.export_database)
+        import_button.clicked.connect(self.import_database)
+        
         button_layout = QHBoxLayout()
-        buttons = [
-            ("Add", self.add_record),
-            ("Delete", self.delete_record),
-            ("Export", self.export_database),
-            ("Import", self.import_database)
-        ]
-        for text, slot in buttons:
-            button = QPushButton(text)
+        buttons = [add_button, delete_button, export_button, import_button]
+        for button in buttons:
             button.setFixedWidth(100)
-            button.clicked.connect(slot)
             button_layout.addWidget(button)
-        layout.addLayout(button_layout)
+        main_layout.addLayout(button_layout)
+        
+        self.load_customers_data()
+        self.load_orders_data()
+        self.load_products_data()
+        self.load_suppliers_data()
+        self.load_join_data()
     
-    def create_customers_tab(self, layout):
-        self.create_search_filter_layout(layout, [
-            ("Search:", self.search_customers),
-            ("Filter by city:", self.filter_customers),
-            ("Filter by name:", self.filter_customers),
-            ("Filter by email:", self.filter_customers)
-        ])
-        self.customers_table_widget = self.create_table(layout)
-    
-    def create_orders_tab(self, layout):
-        self.orders_table_widget = self.create_table(layout)
-    
-    def create_products_tab(self, layout):
-        self.products_table_widget = self.create_table(layout)
-    
-    def create_suppliers_tab(self, layout):
-        self.suppliers_table_widget = self.create_table(layout)
-    
-    def create_join_tab(self, layout):
-        self.join_table_widget = self.create_table(layout)
-    
-    def create_search_filter_layout(self, layout, fields):
+    def create_customers_tab(self):
+        self.customers_tab = QWidget()
+        layout = QVBoxLayout(self.customers_tab)
+        
+        # Search and filter textboxes
+        search_label = QLabel("Search:")
+        self.search_customers_textbox = QLineEdit()
+        self.search_customers_textbox.textChanged.connect(self.search_customers)
+        filter_label = QLabel("Filter by city:")
+        self.filter_customers_textbox = QLineEdit()
+        self.filter_customers_textbox.textChanged.connect(self.filter_customers)
+        
+        filter_name_label = QLabel("Filter by name:")
+        self.filter_customers_name_textbox = QLineEdit()
+        self.filter_customers_name_textbox.textChanged.connect(self.filter_customers)
+        
+        filter_email_label = QLabel("Filter by email:")
+        self.filter_customers_email_textbox = QLineEdit()
+        self.filter_customers_email_textbox.textChanged.connect(self.filter_customers)
+        
+        # Add search and filter textboxes to the layout
         search_layout = QHBoxLayout()
-        for label_text, slot in fields:
-            label = QLabel(label_text)
-            textbox = QLineEdit()
-            textbox.textChanged.connect(slot)
-            search_layout.addWidget(label)
-            search_layout.addWidget(textbox)
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_customers_textbox)
+        search_layout.addWidget(filter_label)
+        search_layout.addWidget(self.filter_customers_textbox)
+        search_layout.addWidget(filter_name_label)
+        search_layout.addWidget(self.filter_customers_name_textbox)
+        search_layout.addWidget(filter_email_label)
+        search_layout.addWidget(self.filter_customers_email_textbox)
+        
         layout.addLayout(search_layout)
+        
+        # Create a table widget
+        self.customers_table_widget = QTableWidget()
+        self.customers_table_widget.setSortingEnabled(True)
+        layout.addWidget(self.customers_table_widget)
+        
+        self.customers_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_customers)
+        self.tab_widget.addTab(self.customers_tab, "Customers")
     
-    def create_table(self, layout):
-        table_widget = QTableWidget()
-        table_widget.setSortingEnabled(True)
-        layout.addWidget(table_widget)
-        return table_widget
+    def create_orders_tab(self):
+        self.orders_tab = QWidget()
+        layout = QVBoxLayout(self.orders_tab)
+        
+        self.orders_table_widget = QTableWidget()
+        self.orders_table_widget.setSortingEnabled(True)
+        layout.addWidget(self.orders_table_widget)
+        
+        self.orders_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_orders)
+        self.tab_widget.addTab(self.orders_tab, "Orders")
     
-    def load_data(self, table_name):
-        table_widget = getattr(self, f"{table_name}_table_widget")
-        records = self.db.fetch_all(table_name)
-        self.update_table(table_widget, records, table_name)
+    def create_products_tab(self):
+        self.products_tab = QWidget()
+        layout = QVBoxLayout(self.products_tab)
+        
+        self.products_table_widget = QTableWidget()
+        self.products_table_widget.setSortingEnabled(True)
+        layout.addWidget(self.products_table_widget)
+        
+        self.products_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_products)
+        self.tab_widget.addTab(self.products_tab, "Products")
     
-    def load_join_data(self, _):
-        records = self.db.fetch_customer_orders()
-        self.update_table(self.join_table_widget, records, "customer orders")
+    def create_suppliers_tab(self):
+        self.suppliers_tab = QWidget()
+        layout = QVBoxLayout(self.suppliers_tab)
+        
+        self.suppliers_table_widget = QTableWidget()
+        self.suppliers_table_widget.setSortingEnabled(True)
+        layout.addWidget(self.suppliers_table_widget)
+        
+        self.tab_widget.addTab(self.suppliers_tab, "Suppliers")
     
-    def update_table(self, table_widget, records, table_name):
-        headers = {
-            "customers": ["ID", "Name", "Email", "Phone", "City"],
-            "orders": ["ID", "Customer ID", "Product ID", "Date", "Amount", "Status"],
-            "products": ["ID", "Name", "Category", "Price", "Stock"],
-            "suppliers": ["ID", "Name", "Contact", "Address", "Email"],
-            "customer orders": ["Customer ID", "Customer Name", "Order Date", "Order Amount"]
-        }
-        table_widget.setRowCount(len(records))
-        table_widget.setColumnCount(len(headers[table_name]))
-        table_widget.setHorizontalHeaderLabels(headers[table_name])
+    def create_join_tab(self):
+        self.join_tab = QWidget()
+        layout = QVBoxLayout(self.join_tab)
+        
+        self.join_table_widget = QTableWidget()
+        self.join_table_widget.setSortingEnabled(True)
+        layout.addWidget(self.join_table_widget)
+        
+        self.join_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_join)
+        self.tab_widget.addTab(self.join_tab, "Customer Orders")
+
+    def load_customers_data(self):
+        records = self.db.fetch_all_customers()
+        self.customers_table_widget.setRowCount(len(records))
+        self.customers_table_widget.setColumnCount(5)
+        self.customers_table_widget.setHorizontalHeaderLabels(["ID", "Name", "Email", "Phone", "City"])
+        
         for row_num, row_data in enumerate(records):
             for col_num, col_data in enumerate(row_data):
-                table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
+                self.customers_table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
+
+    def load_orders_data(self):
+        self.db.c.execute("SELECT * FROM orders")
+        records = self.db.c.fetchall()
+        self.orders_table_widget.setRowCount(len(records))
+        self.orders_table_widget.setColumnCount(6)
+        self.orders_table_widget.setHorizontalHeaderLabels(["ID", "Customer ID", "Product ID", "Date", "Amount", "Status"])
+        
+        for row_num, row_data in enumerate(records):
+            for col_num, col_data in enumerate(row_data):
+                self.orders_table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
+
+    def load_products_data(self):
+        self.db.c.execute("SELECT * FROM products")
+        records = self.db.c.fetchall()
+        self.products_table_widget.setRowCount(len(records))
+        self.products_table_widget.setColumnCount(5)
+        self.products_table_widget.setHorizontalHeaderLabels(["ID", "Name", "Category", "Price", "Stock"])
+        
+        for row_num, row_data in enumerate(records):
+            for col_num, col_data in enumerate(row_data):
+                self.products_table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
+
+    def load_suppliers_data(self):
+        self.db.c.execute("SELECT * FROM suppliers")
+        records = self.db.c.fetchall()
+        self.suppliers_table_widget.setRowCount(len(records))
+        self.suppliers_table_widget.setColumnCount(5)
+        self.suppliers_table_widget.setHorizontalHeaderLabels(["ID", "Name", "Contact", "Address", "Email"])
+        
+        for row_num, row_data in enumerate(records):
+            for col_num, col_data in enumerate(row_data):
+                self.suppliers_table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
+
+    def load_join_data(self):
+        records = self.db.fetch_customer_orders()
+        self.join_table_widget.setRowCount(len(records))
+        self.join_table_widget.setColumnCount(4)
+        self.join_table_widget.setHorizontalHeaderLabels(["Customer ID", "Customer Name", "Order Date", "Order Amount"])
+        
+        for row_num, row_data in enumerate(records):
+            for col_num, col_data in enumerate(row_data):
+                self.join_table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
 
     def refresh_all_tabs(self):
-        for i in range(self.tab_widget.count()):
-            tab_name = self.tab_widget.tabText(i).lower()
-            if tab_name == "customer orders":
-                self.load_join_data(tab_name)
-            else:
-                self.load_data(tab_name)
+        self.load_customers_data()
+        self.load_orders_data()
+        self.load_products_data()
+        self.load_suppliers_data()
+        self.load_join_data()
 
     def add_record(self):
         current_tab = self.tab_widget.currentWidget()
-        tab_name = self.tab_widget.tabText(self.tab_widget.indexOf(current_tab)).lower()
         
+        if current_tab == self.customers_tab:
+            self.add_customer()
+        elif current_tab == self.orders_tab:
+            self.add_order()
+        elif current_tab == self.products_tab:
+            self.add_product()
+        elif current_tab == self.suppliers_tab:
+            self.add_supplier()
+        else:
+            QMessageBox.warning(self, "Warning", "Add operation not supported for this tab")
+
+    def delete_record(self):
+        current_tab = self.tab_widget.currentWidget()
+        
+        if current_tab == self.customers_tab:
+            self.delete_customers()
+        elif current_tab == self.orders_tab:
+            self.delete_orders()
+        elif current_tab == self.products_tab:
+            self.delete_products()
+        elif current_tab == self.suppliers_tab:
+            self.delete_suppliers()
+        else:
+            QMessageBox.warning(self, "Warning", "Delete operation not supported for this tab")
+
+    def add_customer(self):
         dialog = QDialog(self)
-        dialog.setWindowTitle(f"Add {tab_name.capitalize()[:-1]}")
+        dialog.setWindowTitle("Add Customer")
+        
         layout = QFormLayout(dialog)
         
-        fields = {
-            "customers": [("Name", "name"), ("Email", "email"), ("Phone", "phone"), ("City", "city")],
-            "orders": [("Customer ID", "customer_id"), ("Product ID", "product_id"), ("Date", "date"), ("Amount", "amount"), ("Status", "status")],
-            "products": [("Name", "name"), ("Category", "category"), ("Price", "price"), ("Stock", "stock")],
-            "suppliers": [("Name", "name"), ("Contact", "contact"), ("Address", "address"), ("Email", "email")]
-        }
+        name_input = QLineEdit()
+        email_input = QLineEdit()
+        phone_input = QLineEdit()
+        city_input = QLineEdit()
         
-        inputs = {}
-        for label, field in fields[tab_name]:
-            input_widget = QLineEdit()
-            layout.addRow(label, input_widget)
-            inputs[field] = input_widget
+        layout.addRow("Name:", name_input)
+        layout.addRow("Email:", email_input)
+        layout.addRow("Phone:", phone_input)
+        layout.addRow("City:", city_input)
         
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, dialog)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            values = [inputs[field].text() for field in inputs]
-            self.db.c.execute(f"INSERT INTO {tab_name} ({', '.join(inputs.keys())}) VALUES ({', '.join(['?' for _ in inputs])})", values)
+            name = name_input.text()
+            email = email_input.text()
+            phone = phone_input.text()
+            city = city_input.text()
+            
+            self.db.insert_customer(name, email, phone, city)
+            self.refresh_all_tabs()
+
+    def delete_customers(self):
+        selected_items = self.customers_table_widget.selectedItems()
+        if selected_items:
+            rows = list(set(item.row() for item in selected_items))
+            rows.sort(reverse=True)  # Sortujemy odwrotnie, aby usuwać od końca
+
+            for row in rows:
+                record_id = self.customers_table_widget.item(row, 0).text()
+                self.db.delete_customer(record_id)
+
+            self.refresh_all_tabs()
+        else:
+            QMessageBox.warning(self, "Warning", "Please select a record to delete")
+
+    def add_order(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Order")
+        
+        layout = QFormLayout(dialog)
+        
+        customer_id_input = QLineEdit()
+        product_id_input = QLineEdit()
+        date_input = QLineEdit()
+        amount_input = QLineEdit()
+        status_input = QLineEdit()
+        
+        layout.addRow("Customer ID:", customer_id_input)
+        layout.addRow("Product ID:", product_id_input)
+        layout.addRow("Date:", date_input)
+        layout.addRow("Amount:", amount_input)
+        layout.addRow("Status:", status_input)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, dialog)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            customer_id = customer_id_input.text()
+            product_id = product_id_input.text()
+            date = date_input.text()
+            amount = amount_input.text()
+            status = status_input.text()
+            
+            self.db.c.execute("INSERT INTO orders (customer_id, product_id, date, amount, status) VALUES (?, ?, ?, ?, ?)", 
+                              (customer_id, product_id, date, amount, status))
             self.db.conn.commit()
             self.refresh_all_tabs()
 
-    def delete_record(self):
-        current_tab = self.tab_widget.currentWidget()
-        tab_name = self.tab_widget.tabText(self.tab_widget.indexOf(current_tab)).lower()
-        table_widget = getattr(self, f"{tab_name}_table_widget")
-        
-        selected_items = table_widget.selectedItems()
+    def delete_orders(self):
+        selected_items = self.orders_table_widget.selectedItems()
         if selected_items:
             rows = list(set(item.row() for item in selected_items))
-            rows.sort(reverse=True)  # Sort in reverse order to delete from the end
-            
+            rows.sort(reverse=True)  # Sortujemy odwrotnie, aby usuwać od końca
+
             for row in rows:
-                record_id = table_widget.item(row, 0).text()
-                self.db.delete_record(tab_name, record_id)
+                record_id = self.orders_table_widget.item(row, 0).text()
+                self.db.c.execute("DELETE FROM orders WHERE id = ?", (record_id,))
+                self.db.conn.commit()
+
+            self.refresh_all_tabs()
+        else:
+            QMessageBox.warning(self, "Warning", "Please select a record to delete")
+
+    def add_product(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Product")
+        
+        layout = QFormLayout(dialog)
+        
+        name_input = QLineEdit()
+        category_input = QLineEdit()
+        price_input = QLineEdit()
+        stock_input = QLineEdit()
+        
+        layout.addRow("Name:", name_input)
+        layout.addRow("Category:", category_input)
+        layout.addRow("Price:", price_input)
+        layout.addRow("Stock:", stock_input)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, dialog)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            name = name_input.text()
+            category = category_input.text()
+            price = price_input.text()
+            stock = stock_input.text()
             
+            self.db.c.execute("INSERT INTO products (name, category, price, stock) VALUES (?, ?, ?, ?, ?)", 
+                              (name, category, price, stock))
+            self.db.conn.commit()
+            self.refresh_all_tabs()
+
+    def delete_products(self):
+        selected_items = self.products_table_widget.selectedItems()
+        if selected_items:
+            rows = list(set(item.row() for item in selected_items))
+            rows.sort(reverse=True)  # Sortujemy odwrotnie, aby usuwać od końca
+
+            for row in rows:
+                record_id = self.products_table_widget.item(row, 0).text()
+                self.db.c.execute("DELETE FROM products WHERE id = ?", (record_id,))
+                self.db.conn.commit()
+
+            self.refresh_all_tabs()
+        else:
+            QMessageBox.warning(self, "Warning", "Please select a record to delete")
+
+    def add_supplier(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Supplier")
+        
+        layout = QFormLayout(dialog)
+        
+        name_input = QLineEdit()
+        contact_input = QLineEdit()
+        address_input = QLineEdit()
+        email_input = QLineEdit()
+        
+        layout.addRow("Name:", name_input)
+        layout.addRow("Contact:", contact_input)
+        layout.addRow("Address:", address_input)
+        layout.addRow("Email:", email_input)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, dialog)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            name = name_input.text()
+            contact = contact_input.text()
+            address = address_input.text()
+            email = email_input.text()
+            
+            self.db.c.execute("INSERT INTO suppliers (name, contact, address, email) VALUES (?, ?, ?, ?, ?)", 
+                              (name, contact, address, email))
+            self.db.conn.commit()
+            self.refresh_all_tabs()
+
+    def delete_suppliers(self):
+        selected_items = self.suppliers_table_widget.selectedItems()
+        if selected_items:
+            rows = list(set(item.row() for item in selected_items))
+            rows.sort(reverse=True)  # Sortujemy odwrotnie, aby usuwać od końca
+
+            for row in rows:
+                record_id = self.suppliers_table_widget.item(row, 0).text()
+                self.db.c.execute("DELETE FROM suppliers WHERE id = ?", (record_id,))
+                self.db.conn.commit()
+
             self.refresh_all_tabs()
         else:
             QMessageBox.warning(self, "Warning", "Please select a record to delete")
@@ -190,11 +428,12 @@ class MainWindow(QMainWindow):
             with open(file_name, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
                 for table in tables:
-                    records = self.db.fetch_all(table)
+                    self.db.c.execute(f"SELECT * FROM {table}")
+                    records = self.db.c.fetchall()
                     writer.writerow([table])
-                    writer.writerow([desc[0] for desc in self.db.c.description])
+                    writer.writerow([i[0] for i in self.db.c.description])
                     writer.writerows(records)
-                    writer.writerow([])  # Add an empty row between tables
+                    writer.writerow([])  # Dodajemy pusty wiersz między tabelami
             QMessageBox.information(self, "Export", f"Exported to {file_name}")
 
     def import_database(self):
@@ -211,7 +450,7 @@ class MainWindow(QMainWindow):
                     if row[0] in ["customers", "orders", "products", "suppliers"]:
                         table = row[0]
                         headers = next(reader)  # Skip the headers
-                        self.db.clear_table(table)  # Clear old data
+                        self.db.c.execute(f"DELETE FROM {table}")  # Clear old data
                     else:
                         try:
                             columns = ', '.join(headers)
@@ -224,44 +463,109 @@ class MainWindow(QMainWindow):
             self.refresh_all_tabs()
 
     def search_customers(self, text):
-        self.filter_customers(text, self.filter_customers_textbox.text(), self.filter_customers_name_textbox.text(), self.filter_customers_email_textbox.text())
+        self.db.c.execute("SELECT * FROM customers WHERE name LIKE ?", ('%' + text + '%',))
+        records = self.db.c.fetchall()
+        self.update_customers_table(records)
 
-    def filter_customers(self, search="", city="", name="", email=""):
+    def filter_customers(self):
+        filter_city = self.filter_customers_textbox.text()
+        filter_name = self.filter_customers_name_textbox.text()
+        filter_email = self.filter_customers_email_textbox.text()
+
         query = "SELECT * FROM customers WHERE 1=1"
         params = []
 
-        if search:
-            query += " AND name LIKE ?"
-            params.append(f'%{search}%')
-        if city:
+        if filter_city:
             query += " AND city LIKE ?"
-            params.append(f'%{city}%')
-        if name:
+            params.append('%' + filter_city + '%')
+        if filter_name:
             query += " AND name LIKE ?"
-            params.append(f'%{name}%')
-        if email:
+            params.append('%' + filter_name + '%')
+        if filter_email:
             query += " AND email LIKE ?"
-            params.append(f'%{email}%')
+            params.append('%' + filter_email + '%')
 
         self.db.c.execute(query, params)
         records = self.db.c.fetchall()
-        self.update_table(self.customers_table_widget, records, "customers")
+        self.update_customers_table(records)
 
-    def cell_double_clicked(self, table_name, row, column):
-        table_widget = getattr(self, f"{table_name}_table_widget")
-        table_widget.editItem(table_widget.item(row, column))
-        table_widget.itemChanged.connect(lambda item: self.update_database(table_name, item))
+    def update_customers_table(self, records):
+        self.customers_table_widget.setRowCount(len(records))
+        self.customers_table_widget.setColumnCount(5)
+        self.customers_table_widget.setHorizontalHeaderLabels(["ID", "Name", "Email", "Phone", "City"])
+        
+        for row_num, row_data in enumerate(records):
+            for col_num, col_data in enumerate(row_data):
+                self.customers_table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
 
-    def update_database(self, table_name, item):
-        table_widget = getattr(self, f"{table_name}_table_widget")
+    def cell_double_clicked_customers(self, row, column):
+        self.customers_table_widget.editItem(self.customers_table_widget.item(row, column))
+        self.customers_table_widget.itemChanged.connect(self.update_database_customers)
+
+    def update_database_customers(self, item):
         row = item.row()
         column = item.column()
-        record_id = table_widget.item(row, 0).text()
+        record_id = self.customers_table_widget.item(row, 0).text()  # Assuming the ID is in the first column
         new_value = item.text()
-        column_name = table_widget.horizontalHeaderItem(column).text().lower()
+
+        column_name = self.customers_table_widget.horizontalHeaderItem(column).text().lower()
         
-        self.db.update_record(table_name, record_id, column_name, new_value)
-        table_widget.itemChanged.disconnect(lambda item: self.update_database(table_name, item))
+        self.db.update_customer(record_id, column_name, new_value)
+        self.customers_table_widget.itemChanged.disconnect(self.update_database_customers)
+        self.refresh_all_tabs()
+        
+    def cell_double_clicked_join(self, row, column):
+        self.join_table_widget.editItem(self.join_table_widget.item(row, column))
+        self.join_table_widget.itemChanged.connect(self.update_database_join)
+        
+    def update_database_join(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.join_table_widget.item(row, 0).text()
+        new_value = item.text()
+
+        column_name = self.join_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        self.db.update_order(record_id, column_name, new_value)
+        self.join_table_widget.itemChanged.disconnect(self.update_database_join)
+        self.refresh_all_tabs()
+
+    def cell_double_clicked_products(self, row, column):
+        self.products_table_widget.editItem(self.products_table_widget.item(row, column))
+        self.products_table_widget.itemChanged.connect(self.update_database_products)
+
+    def update_database_products(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.products_table_widget.item(row, 0).text()
+        new_value = item.text()
+
+        column_name = self.products_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        self.db.update_product(record_id, column_name, new_value)
+        if column_name == 'price':
+            self.db.update_orders_after_product_price_change(record_id, new_value)
+        
+        self.products_table_widget.itemChanged.disconnect(self.update_database_products)
+        self.refresh_all_tabs()
+
+    def cell_double_clicked_orders(self, row, column):
+        self.orders_table_widget.editItem(self.orders_table_widget.item(row, column))
+        self.orders_table_widget.itemChanged.connect(self.update_database_orders)
+
+    def update_database_orders(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.orders_table_widget.item(row, 0).text()
+        new_value = item.text()
+
+        column_name = self.orders_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        self.db.update_order(record_id, column_name, new_value)
+        if column_name == 'amount':
+            self.db.update_product_price_from_order(record_id, new_value)
+        
+        self.orders_table_widget.itemChanged.disconnect(self.update_database_orders)
         self.refresh_all_tabs()
 
 def main():
