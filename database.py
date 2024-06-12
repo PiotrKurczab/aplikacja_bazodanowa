@@ -1,152 +1,135 @@
 import sqlite3
+import csv
 
 class Database:
-    def __init__(self, db_name):
-        self.conn = sqlite3.connect(db_name)
+    def __init__(self):
+        self.conn = sqlite3.connect(':memory:')
         self.c = self.conn.cursor()
         self.create_tables()
+        self.populate_initial_data()
 
     def create_tables(self):
-        tables = {
-            "customers": '''CREATE TABLE IF NOT EXISTS customers (
-                                id INTEGER PRIMARY KEY, 
-                                name TEXT, 
-                                email TEXT, 
-                                phone TEXT, 
-                                city TEXT)''',
-            "orders": '''CREATE TABLE IF NOT EXISTS orders (
-                             id INTEGER PRIMARY KEY, 
-                             customer_id INTEGER,
-                             product_id INTEGER,
-                             date TEXT, 
-                             amount REAL, 
-                             status TEXT,
-                             FOREIGN KEY(customer_id) REFERENCES customers(id),
-                             FOREIGN KEY(product_id) REFERENCES products(id))''',
-            "products": '''CREATE TABLE IF NOT EXISTS products (
-                               id INTEGER PRIMARY KEY, 
-                               name TEXT, 
-                               category TEXT, 
-                               price REAL, 
-                               stock INTEGER)''',
-            "suppliers": '''CREATE TABLE IF NOT EXISTS suppliers (
-                                id INTEGER PRIMARY KEY, 
-                                name TEXT, 
-                                contact TEXT, 
-                                address TEXT, 
-                                email TEXT)'''
-        }
-
-        for table_name, create_statement in tables.items():
-            self.c.execute(create_statement)
-        self.conn.commit()
-
-    def populate_tables(self):
-        # Clear tables
-        self.clear_table("customers")
-        self.clear_table("orders")
-        self.clear_table("products")
-        self.clear_table("suppliers")
-
-        # Sample data
-        customers = [
-            (1, 'Michał Kowalski', 'mkowalski@example.com', '501-123-456', 'Warszawa'),
-            (2, 'Anna Wiśniewska', 'awisnia@example.com', '502-234-567', 'Kraków'),
-            (3, 'Piotr Nowak', 'pnowak@example.com', '503-345-678', 'Wrocław'),
-            (4, 'Katarzyna Lewandowska', 'klewand@example.com', '504-456-789', 'Gdańsk'),
-            (5, 'Tomasz Zając', 'tzajac@example.com', '505-567-890', 'Poznań')
-        ]
+        self.c.execute('''CREATE TABLE customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            city TEXT NOT NULL
+        )''')
         
-        orders = [
-            (1, 1, 1, '2023-06-01', 2499.99, 'Zrealizowane'),
-            (2, 2, 2, '2023-06-02', 499.99, 'W realizacji'),
-            (3, 3, 3, '2023-06-03', 1299.99, 'Dostarczone'),
-            (4, 4, 4, '2023-06-04', 899.99, 'Anulowane'),
-            (5, 5, 5, '2023-06-05', 399.99, 'Zwrócone')
+        self.c.execute('''CREATE TABLE orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER,
+            product_id INTEGER,
+            date TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            FOREIGN KEY (customer_id) REFERENCES customers (id),
+            FOREIGN KEY (product_id) REFERENCES products (id)
+        )''')
+        
+        self.c.execute('''CREATE TABLE products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            price REAL NOT NULL,
+            stock INTEGER NOT NULL
+        )''')
+        
+        self.c.execute('''CREATE TABLE suppliers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            contact TEXT NOT NULL,
+            address TEXT NOT NULL,
+            email TEXT NOT NULL
+        )''')
+
+    def populate_initial_data(self):
+        customers = [
+            ("Michał Kowalski", "michal.kowalski@gmail.com", "501-234-567", "Warszawa"),
+            ("Anna Nowak", "a.nowak@example.com", "694-567-890", "Kraków"),
+            ("Piotr Wiśniewski", "p.wisniewski@firma.pl", "789-012-345", "Gdańsk"),
+            ("Katarzyna Wójcik", "kwojcik@mail.com", "234-567-890", "Wrocław"),
         ]
+        self.c.executemany("INSERT INTO customers (name, email, phone, city) VALUES (?, ?, ?, ?)", customers)
 
         products = [
-            (1, 'Smartfon XYZ', 'Elektronika', 2499.99, 15),
-            (2, 'Laptop GamePro', 'Elektronika', 4999.99, 8),
-            (3, 'Tablet ArtPad', 'Elektronika', 1299.99, 20),
-            (4, 'Monitor UltraHD', 'Elektronika', 1499.99, 12),
-            (5, 'Drukarka LaserPro', 'Biuro', 399.99, 25)
+            ("Smartfon XYZ Pro", "Elektronika", 2499.99, 75),
+            ("Laptop GamePro 5000", "Komputery", 4999.00, 20),
+            ("Odkurzacz Turbo 2000", "AGD", 799.99, 50),
+            ("Zestaw garnków Premium", "Dom i ogród", 599.00, 30),
         ]
+        self.c.executemany("INSERT INTO products (name, category, price, stock) VALUES (?, ?, ?, ?)", products)
+
+        orders = [
+            (1, 3, "2023-04-22", 1, "Wysłane"),
+            (2, 1, "2023-05-11", 2, "W realizacji"),
+            (4, 2, "2023-06-03", 1, "Dostarczone"),
+            (3, 4, "2023-05-28", 3, "Anulowane"),
+        ]
+        self.c.executemany("INSERT INTO orders (customer_id, product_id, date, amount, status) VALUES (?, ?, ?, ?, ?)", orders)
 
         suppliers = [
-            (1, 'TechPro Sp. z o.o.', 'info@techpro.pl', 'ul. Innowacyjna 1, Warszawa', 'zakupy@techpro.pl'),
-            (2, 'GadgetMasters S.A.', 'kontakt@gadgetmasters.pl', 'Al. Cyfrowa 10, Kraków', 'zamowienia@gadgetmasters.pl'),
-            (3, 'ElektroGalaktyka Sp.k.', 'biuro@elektrogalaktyka.pl', 'ul. Elektroniczna 25, Wrocław', 'zakupy@elektrogalaktyka.pl'),
-            (4, 'CyberTech Sp. z o.o.', 'info@cybertech.pl', 'ul. Bitowa 12, Gdańsk', 'zamowienia@cybertech.pl'),
-            (5, 'PrintExpert S.A.', 'kontakt@printexpert.pl', 'Al. Drukarska 5, Poznań', 'zakupy@printexpert.pl')
+            ("MegaElektro S.A.", "Jan Kowalski", "ul. Przemysłowa 5, 00-123 Warszawa", "kontakt@megaelektro.pl"),
+            ("AGDMaster", "Anna Wiśniewska", "ul. Handlowa 27, 80-200 Gdańsk", "obslugarc@agdmaster.com"),
+            ("DomBytHouse", "Piotr Zieliński", "ul. Ogrodowa 12, 30-500 Kraków", "kontakt@dombyt.pl"),
+            ("TopKomputery", "Katarzyna Adamczyk", "Al. Narodowa 31, 40-100 Wrocław", "biuro@topkomputery.pl"),
         ]
-
-        self.bulk_insert("customers", customers)
-        self.bulk_insert("orders", orders)
-        self.bulk_insert("products", products)
-        self.bulk_insert("suppliers", suppliers)
-
-    def clear_table(self, table_name):
-        self.c.execute(f"DELETE FROM {table_name}")
+        self.c.executemany("INSERT INTO suppliers (name, contact, address, email) VALUES (?, ?, ?, ?)", suppliers)
         self.conn.commit()
 
-    def bulk_insert(self, table, data):
-        placeholders = ', '.join(['?' for _ in data[0]])
-        self.c.executemany(f"INSERT INTO {table} VALUES ({placeholders})", data)
-        self.conn.commit()
-
-    def fetch_all(self, table):
-        self.c.execute(f"SELECT * FROM {table}")
+    def fetch_all_customers(self):
+        self.c.execute("SELECT * FROM customers")
         return self.c.fetchall()
 
     def fetch_customer_orders(self):
-        self.c.execute('''SELECT customers.id, customers.name, orders.date, orders.amount 
-                          FROM customers 
-                          JOIN orders ON customers.id = orders.customer_id''')
+        self.c.execute('''SELECT customers.id, customers.name, orders.date, orders.amount, products.name, products.price
+                          FROM customers
+                          JOIN orders ON customers.id = orders.customer_id
+                          JOIN products ON orders.product_id = products.id''')
         return self.c.fetchall()
 
-    def insert_customer(self, name, email, phone, city):
-        self.c.execute("INSERT INTO customers (name, email, phone, city) VALUES (?, ?, ?, ?)", (name, email, phone, city))
-        self.conn.commit()
-
     def delete_record(self, table, record_id):
-        self.c.execute(f"DELETE FROM {table} WHERE id = ?", (record_id,))
+        self.c.execute(f"DELETE FROM {table} WHERE id=?", (record_id,))
         self.conn.commit()
 
-    def update_record(self, table, record_id, column, value):
-        self.c.execute(f"UPDATE {table} SET {column} = ? WHERE id = ?", (value, record_id))
+    def update_record(self, table, record_id, column_name, new_value):
+        self.c.execute(f"UPDATE {table} SET {column_name}=? WHERE id=?", (new_value, record_id))
         self.conn.commit()
 
-    def update_orders_after_product_price_change(self, product_id, new_price):
-        self.c.execute('''UPDATE orders SET amount = ? WHERE product_id = ?''', (new_price, product_id))
-        self.conn.commit()
-        
-    def update_product_price_from_order(self, order_id, new_price):
-        self.c.execute('''UPDATE products 
-                        SET price = ? 
-                        WHERE id = (SELECT product_id 
-                                    FROM orders 
-                                    WHERE id = ?)''', (new_price, order_id))
-        self.conn.commit()
+    def export_to_csv(self, file_name):
+        tables = ["customers", "orders", "products", "suppliers"]
 
-    def update_customer_name_in_orders(self, customer_id, new_name):
-        self.c.execute('''UPDATE orders 
-                          SET customer_name = ? 
-                          WHERE customer_id = ?''', (new_name, customer_id))
-        self.conn.commit()
+        with open(file_name, 'w', newline='') as file:
+            writer = csv.writer(file)
+            for table in tables:
+                writer.writerow([table.capitalize()])
+                self.c.execute(f"SELECT * FROM {table}")
+                records = self.c.fetchall()
+                writer.writerows(records)
+                writer.writerow([])
 
-    def update_order_amount_in_customer_orders(self, order_id, new_amount):
-        self.c.execute('''UPDATE customer_orders 
-                          SET order_amount = ? 
-                          WHERE order_id = ?''', (new_amount, order_id))
-        self.conn.commit()
+    def import_from_csv(self, file_name):
+        self.create_tables()
 
-    def update_product_price_in_customer_orders(self, product_id, new_price):
-        self.c.execute('''UPDATE customer_orders 
-                          SET product_price = ? 
-                          WHERE product_id = ?''', (new_price, product_id))
-        self.conn.commit()
+        with open(file_name, 'r') as file:
+            reader = csv.reader(file)
+            table = None
 
-    def get_product_id_from_order(self, order_id):
-        self.c.execute('''SELECT product_id FROM orders WHERE id = ?''', (order_id,))
-        return self.c.fetchone()[0]
+            for row in reader:
+                if not row:
+                    continue
+                if row[0].lower() in ["customers", "orders", "products", "suppliers"]:
+                    table = row[0].lower()
+                    continue
+                if table:
+                    if table == "customers":
+                        self.c.execute("INSERT INTO customers (id, name, email, phone, city) VALUES (?, ?, ?, ?, ?)", row)
+                    elif table == "orders":
+                        self.c.execute("INSERT INTO orders (id, customer_id, product_id, date, amount, status) VALUES (?, ?, ?, ?, ?, ?)", row)
+                    elif table == "products":
+                        self.c.execute("INSERT INTO products (id, name, category, price, stock) VALUES (?, ?, ?, ?, ?)", row)
+                    elif table == "suppliers":
+                        self.c.execute("INSERT INTO suppliers (id, name, contact, address, email) VALUES (?, ?, ?, ?, ?)", row)
+
+        self.conn.commit()
