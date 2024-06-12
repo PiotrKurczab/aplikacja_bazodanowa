@@ -132,3 +132,11 @@ class Database:
     def update_orders_after_product_price_change(self, product_id, new_price):
         self.c.execute('''UPDATE orders SET amount = ? WHERE product_id = ?''', (new_price, product_id))
         self.conn.commit()
+        
+    def update_product_price_from_order(self, order_id, new_price):
+        self.c.execute('''UPDATE products 
+                        SET price = ? 
+                        WHERE id = (SELECT product_id 
+                                    FROM orders 
+                                    WHERE id = ?)''', (new_price, order_id))
+        self.conn.commit()

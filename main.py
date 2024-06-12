@@ -110,6 +110,7 @@ class MainWindow(QMainWindow):
         self.orders_table_widget.setSortingEnabled(True)
         layout.addWidget(self.orders_table_widget)
         
+        self.orders_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_orders)
         self.tab_widget.addTab(self.orders_tab, "Orders")
     
     def create_products_tab(self):
@@ -529,6 +530,25 @@ class MainWindow(QMainWindow):
             self.db.update_orders_after_product_price_change(record_id, new_value)
         
         self.products_table_widget.itemChanged.disconnect(self.update_database_products)
+        self.refresh_all_tabs()
+
+    def cell_double_clicked_orders(self, row, column):
+        self.orders_table_widget.editItem(self.orders_table_widget.item(row, column))
+        self.orders_table_widget.itemChanged.connect(self.update_database_orders)
+
+    def update_database_orders(self, item):
+        row = item.row()
+        column = item.column()
+        record_id = self.orders_table_widget.item(row, 0).text()
+        new_value = item.text()
+
+        column_name = self.orders_table_widget.horizontalHeaderItem(column).text().lower()
+        
+        self.db.update_order(record_id, column_name, new_value)
+        if column_name == 'amount':
+            self.db.update_product_price_from_order(record_id, new_value)
+        
+        self.orders_table_widget.itemChanged.disconnect(self.update_database_orders)
         self.refresh_all_tabs()
 
 def main():
