@@ -7,42 +7,47 @@ class Database:
         self.create_tables()
 
     def create_tables(self):
-        self.c.execute('''CREATE TABLE IF NOT EXISTS customers (
-                            id INTEGER PRIMARY KEY, 
-                            name TEXT, 
-                            email TEXT, 
-                            phone TEXT, 
-                            city TEXT)''')
-        self.c.execute('''CREATE TABLE IF NOT EXISTS orders (
-                            id INTEGER PRIMARY KEY, 
-                            customer_id INTEGER,
-                            product_id INTEGER,
-                            date TEXT, 
-                            amount REAL, 
-                            status TEXT,
-                            FOREIGN KEY(customer_id) REFERENCES customers(id),
-                            FOREIGN KEY(product_id) REFERENCES products(id))''')
-        self.c.execute('''CREATE TABLE IF NOT EXISTS products (
-                            id INTEGER PRIMARY KEY, 
-                            name TEXT, 
-                            category TEXT, 
-                            price REAL, 
-                            stock INTEGER)''')
-        self.c.execute('''CREATE TABLE IF NOT EXISTS suppliers (
-                            id INTEGER PRIMARY KEY, 
-                            name TEXT, 
-                            contact TEXT, 
-                            address TEXT, 
-                            email TEXT)''')
+        tables = {
+            "customers": '''CREATE TABLE IF NOT EXISTS customers (
+                                id INTEGER PRIMARY KEY, 
+                                name TEXT, 
+                                email TEXT, 
+                                phone TEXT, 
+                                city TEXT)''',
+            "orders": '''CREATE TABLE IF NOT EXISTS orders (
+                             id INTEGER PRIMARY KEY, 
+                             customer_id INTEGER,
+                             product_id INTEGER,
+                             date TEXT, 
+                             amount REAL, 
+                             status TEXT,
+                             FOREIGN KEY(customer_id) REFERENCES customers(id),
+                             FOREIGN KEY(product_id) REFERENCES products(id))''',
+            "products": '''CREATE TABLE IF NOT EXISTS products (
+                               id INTEGER PRIMARY KEY, 
+                               name TEXT, 
+                               category TEXT, 
+                               price REAL, 
+                               stock INTEGER)''',
+            "suppliers": '''CREATE TABLE IF NOT EXISTS suppliers (
+                                id INTEGER PRIMARY KEY, 
+                                name TEXT, 
+                                contact TEXT, 
+                                address TEXT, 
+                                email TEXT)'''
+        }
+
+        for table_name, create_statement in tables.items():
+            self.c.execute(create_statement)
         self.conn.commit()
 
     def populate_tables(self):
         # Clear tables
-        self.c.execute("DELETE FROM customers")
-        self.c.execute("DELETE FROM orders")
-        self.c.execute("DELETE FROM products")
-        self.c.execute("DELETE FROM suppliers")
-        
+        self.clear_table("customers")
+        self.clear_table("orders")
+        self.clear_table("products")
+        self.clear_table("suppliers")
+
         # Sample data
         customers = [
             (1, 'Michał Kowalski', 'mkowalski@example.com', '501-123-456', 'Warszawa'),
@@ -76,16 +81,22 @@ class Database:
             (5, 'PrintExpert S.A.', 'kontakt@printexpert.pl', 'Al. Drukarska 5, Poznań', 'zakupy@printexpert.pl')
         ]
 
-        # Populate tables
-        self.c.executemany("INSERT INTO customers VALUES (?, ?, ?, ?, ?)", customers)
-        self.c.executemany("INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?)", orders)
-        self.c.executemany("INSERT INTO products VALUES (?, ?, ?, ?, ?)", products)
-        self.c.executemany("INSERT INTO suppliers VALUES (?, ?, ?, ?, ?)", suppliers)
+        self.bulk_insert("customers", customers)
+        self.bulk_insert("orders", orders)
+        self.bulk_insert("products", products)
+        self.bulk_insert("suppliers", suppliers)
+
+    def clear_table(self, table_name):
+        self.c.execute(f"DELETE FROM {table_name}")
         self.conn.commit()
 
+    def bulk_insert(self, table, data):
+        placeholders = ', '.join(['?' for _ in data[0]])
+        self.c.executemany(f"INSERT INTO {table} VALUES ({placeholders})", data)
+        self.conn.commit()
 
-    def fetch_all_customers(self):
-        self.c.execute("SELECT * FROM customers")
+    def fetch_all(self, table):
+        self.c.execute(f"SELECT * FROM {table}")
         return self.c.fetchall()
 
     def fetch_customer_orders(self):
@@ -98,37 +109,14 @@ class Database:
         self.c.execute("INSERT INTO customers (name, email, phone, city) VALUES (?, ?, ?, ?)", (name, email, phone, city))
         self.conn.commit()
 
-    def delete_customer(self, customer_id):
-        self.c.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
+    def delete_record(self, table, record_id):
+        self.c.execute(f"DELETE FROM {table} WHERE id = ?", (record_id,))
         self.conn.commit()
 
-    def update_customer(self, customer_id, column, value):
-        self.c.execute(f"UPDATE customers SET {column} = ? WHERE id = ?", (value, customer_id))
-        self.conn.commit()
-    
-    def update_product(self, product_id, column, value):
-        self.c.execute(f"UPDATE products SET {column} = ? WHERE id = ?", (value, product_id))
+    def update_record(self, table, record_id, column, value):
+        self.c.execute(f"UPDATE {table} SET {column} = ? WHERE id = ?", (value, record_id))
         self.conn.commit()
 
-    def update_order(self, order_id, column, value):
-        if column == "amount":
-            self.c.execute("UPDATE orders SET amount = ? WHERE id = ?", (value, order_id))
-        else:
-            self.c.execute(f"UPDATE orders SET {column} = ? WHERE id = ?", (value, order_id))
-        self.conn.commit()
-
-    def update_supplier(self, supplier_id, column, value):
-        self.c.execute(f"UPDATE suppliers SET {column} = ? WHERE id = ?", (value, supplier_id))
-        self.conn.commit()
-
-    def update_order_amount(self, order_id, value):
-        self.c.execute("UPDATE orders SET amount = ? WHERE id = ?", (value, order_id))
-        self.conn.commit()
-
-    def update_order_date(self, order_id, value):
-        self.c.execute("UPDATE orders SET date = ? WHERE id = ?", (value, order_id))
-        self.conn.commit()
-    
     def update_orders_after_product_price_change(self, product_id, new_price):
         self.c.execute('''UPDATE orders SET amount = ? WHERE product_id = ?''', (new_price, product_id))
         self.conn.commit()
