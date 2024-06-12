@@ -66,25 +66,10 @@ class MainWindow(QMainWindow):
         search_label = QLabel("Search:")
         self.search_customers_textbox = QLineEdit()
         self.search_customers_textbox.textChanged.connect(self.search_customers)
-        filter_label = QLabel("Filter by city:")
-        self.filter_customers_textbox = QLineEdit()
-        self.filter_customers_textbox.textChanged.connect(self.filter_customers)
-        filter_name_label = QLabel("Filter by name:")
-        self.filter_customers_name_textbox = QLineEdit()
-        self.filter_customers_name_textbox.textChanged.connect(self.filter_customers)
-        filter_email_label = QLabel("Filter by email:")
-        self.filter_customers_email_textbox = QLineEdit()
-        self.filter_customers_email_textbox.textChanged.connect(self.filter_customers)
 
         search_layout = QHBoxLayout()
         search_layout.addWidget(search_label)
         search_layout.addWidget(self.search_customers_textbox)
-        search_layout.addWidget(filter_label)
-        search_layout.addWidget(self.filter_customers_textbox)
-        search_layout.addWidget(filter_name_label)
-        search_layout.addWidget(self.filter_customers_name_textbox)
-        search_layout.addWidget(filter_email_label)
-        search_layout.addWidget(self.filter_customers_email_textbox)
 
         layout.addLayout(search_layout)
 
@@ -95,6 +80,18 @@ class MainWindow(QMainWindow):
 
         self.customers_table_widget.cellDoubleClicked.connect(self.cell_double_clicked_customers)
         self.tab_widget.addTab(self.customers_tab, "Customers")
+        
+    def search_customers(self):
+        search_text = self.search_customers_textbox.text()
+        self.db.c.execute("SELECT * FROM customers WHERE name LIKE ?", (f"%{search_text}%",))
+        records = self.db.c.fetchall()
+        self.customers_table_widget.setRowCount(len(records))
+        self.customers_table_widget.setColumnCount(5)
+        self.customers_table_widget.setHorizontalHeaderLabels(["ID", "Name", "Email", "Phone", "City"])
+
+        for row_num, row_data in enumerate(records):
+            for col_num, col_data in enumerate(row_data):
+                self.customers_table_widget.setItem(row_num, col_num, QTableWidgetItem(str(col_data)))
 
     def create_orders_tab(self):
         self.orders_tab = QWidget()
@@ -465,31 +462,6 @@ class MainWindow(QMainWindow):
             self.db.delete_record("suppliers", supplier_id)
         
         self.refresh_all_tabs()
-
-    def search_customers(self):
-        search_text = self.search_customers_textbox.text().lower()
-        self.filter_customers_data(search_text, self.filter_customers_textbox.text().lower())
-
-    def filter_customers(self):
-        filter_text = self.filter_customers_textbox.text().lower()
-        self.filter_customers_data(self.search_customers_textbox.text().lower(), filter_text)
-
-    def filter_customers_data(self, search_text, filter_text):
-        filtered_data = []
-        for row in range(self.customers_table_widget.rowCount()):
-            name_item = self.customers_table_widget.item(row, 1)
-            email_item = self.customers_table_widget.item(row, 2)
-            phone_item = self.customers_table_widget.item(row, 3)
-            city_item = self.customers_table_widget.item(row, 4)
-
-            if (name_item and search_text in name_item.text().lower()) or \
-                (email_item and search_text in email_item.text().lower()) or \
-                (phone_item and search_text in phone_item.text().lower()) or \
-                (city_item and filter_text in city_item.text().lower()):
-                filtered_data.append(row)
-
-        for row in range(self.customers_table_widget.rowCount()):
-            self.customers_table_widget.setRowHidden(row, row not in filtered_data)
 
     def export_database(self):
         file_dialog = QFileDialog()
