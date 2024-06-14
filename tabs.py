@@ -31,14 +31,21 @@ class BaseTab(QWidget):
         record_id = self.table_widget.item(row, 0).text()
         column_name = self.table_widget.horizontalHeaderItem(column).text().lower()
 
+        if column_name == "id":
+            QMessageBox.warning(self, "Warning", "Editing the primary ID field is not allowed.")
+            return
+
         if column_name == "amount" or column_name == "price":
             new_value, ok = self.get_input_dialog_double(f"New value for {column_name.capitalize()}:")
         else:
             new_value, ok = self.get_input_dialog_text(f"New value for {column_name.capitalize()}:")
 
         if ok:
-            self.db.update_record(self.table_name, record_id, column_name, new_value)
-            self.reload_data()
+            try:
+                self.db.update_record(self.table_name, record_id, column_name, new_value)
+                self.reload_data()
+            except ValueError as e:
+                QMessageBox.warning(self, "Error", str(e))
 
     def add_record(self):
         dialog = QDialog(self)

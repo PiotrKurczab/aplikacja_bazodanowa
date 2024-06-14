@@ -98,7 +98,10 @@ class Database(QObject):
         self.conn.commit()
 
     def update_record(self, table, record_id, column_name, new_value):
-        self.c.execute(f"UPDATE {table} SET {column_name}=? WHERE id=?", (new_value, record_id))
+        if column_name.lower() == "id":
+            raise ValueError("Cannot update the primary ID field")
+        column_name = column_name.replace(" ", "_")
+        self.c.execute(f'UPDATE "{table}" SET "{column_name}"=? WHERE id=?', (new_value, record_id))
         self.conn.commit()
         self.record_updated.emit()
 
