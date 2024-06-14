@@ -11,6 +11,7 @@ class MainWindow(QMainWindow):
         self.resize(800, 600)
 
         self.db = Database()
+        self.db.record_updated.connect(self.update_join_tab)
 
         self.tab_widget = QTabWidget()
 
@@ -49,11 +50,13 @@ class MainWindow(QMainWindow):
         current_tab = self.tab_widget.currentWidget()
         if hasattr(current_tab, "add_record"):
             current_tab.add_record()
+            self.update_join_tab()
 
     def delete_record(self):
         current_tab = self.tab_widget.currentWidget()
         if hasattr(current_tab, "delete_record"):
             current_tab.delete_record()
+            self.update_join_tab()
 
     def export_database(self):
         file_name, _ = QFileDialog.getSaveFileName(self, "Export Database", "", "CSV Files (*.csv)")
@@ -66,3 +69,9 @@ class MainWindow(QMainWindow):
             self.db.import_from_csv(file_name)
             self.tab_widget.clear()
             self.create_tabs()
+
+    def update_join_tab(self):
+        for i in range(self.tab_widget.count()):
+            if isinstance(self.tab_widget.widget(i), JoinTab):
+                self.tab_widget.widget(i).reload_data()
+                break

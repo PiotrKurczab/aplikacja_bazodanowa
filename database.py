@@ -1,8 +1,12 @@
 import sqlite3
 import csv
+from PyQt6.QtCore import pyqtSignal, QObject
 
-class Database:
+class Database(QObject):
+    record_updated = pyqtSignal()
+
     def __init__(self):
+        super().__init__()
         self.conn = sqlite3.connect(':memory:')
         self.c = self.conn.cursor()
         self.create_tables()
@@ -96,6 +100,7 @@ class Database:
     def update_record(self, table, record_id, column_name, new_value):
         self.c.execute(f"UPDATE {table} SET {column_name}=? WHERE id=?", (new_value, record_id))
         self.conn.commit()
+        self.record_updated.emit()
 
     def export_to_csv(self, file_name):
         tables = ["customers", "orders", "products", "suppliers"]
@@ -136,3 +141,20 @@ class Database:
                         self.c.execute("INSERT INTO suppliers (id, name, contact, address, email) VALUES (?, ?, ?, ?, ?)", row)
 
         self.conn.commit()
+        
+    def insert_record(self, table, values):
+        placeholders = ', '.join(['?'] * len(values))
+        query = f"INSERT INTO {table} ({', '.join(self.get_column_names(table)[1:])}) VALUES ({placeholders})"
+        self.c.execute(query, values)
+        self.conn.commit()
+
+    def get_column_names(self, table):
+        self.c.execute(f"PRAGMA table_info({table})")
+        return [info[1] for info in self.c.fetchall()]
+
+    def fetch_customer_orders(self):
+        self.c.execute('''SELECT customers.id, customers.name, orders.date, orders.amount, products.name, products.price
+                          FROM customers
+                          JOIN orders ON customers.id = orders.customer_id
+                          JOIN products ON orders.product_id = products.id''')
+        return self.c.fetchall()
