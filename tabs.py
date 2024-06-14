@@ -169,10 +169,26 @@ class ProductsTab(BaseTab):
         super().__init__(db, columns)
         self.table_name = "products"
         self.entity_name = "Product"
+
+        search_label = QLabel("Search:")
+        self.search_textbox = QLineEdit()
+        self.search_textbox.textChanged.connect(self.search_products)
+
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_textbox)
+
+        self.layout().addLayout(search_layout)
         self.reload_data()
 
     def reload_data(self):
         self.db.c.execute("SELECT * FROM products")
+        records = self.db.c.fetchall()
+        self.load_data(records)
+
+    def search_products(self):
+        search_text = self.search_textbox.text()
+        self.db.c.execute("SELECT * FROM products WHERE name LIKE ?", (f"%{search_text}%",))
         records = self.db.c.fetchall()
         self.load_data(records)
 
@@ -182,23 +198,64 @@ class SuppliersTab(BaseTab):
         super().__init__(db, columns)
         self.table_name = "suppliers"
         self.entity_name = "Supplier"
+
+        search_label = QLabel("Search:")
+        self.search_textbox = QLineEdit()
+        self.search_textbox.textChanged.connect(self.search_suppliers)
+
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_textbox)
+
+        self.layout().addLayout(search_layout)
         self.reload_data()
 
     def reload_data(self):
         self.db.c.execute("SELECT * FROM suppliers")
         records = self.db.c.fetchall()
         self.load_data(records)
-        
+
+    def search_suppliers(self):
+        search_text = self.search_textbox.text()
+        self.db.c.execute("SELECT * FROM suppliers WHERE name LIKE ?", (f"%{search_text}%",))
+        records = self.db.c.fetchall()
+        self.load_data(records)
+
+
 class JoinTab(BaseTab):
     def __init__(self, db):
         columns = ["Customer ID", "Customer Name", "Order Date", "Order Amount", "Product Name", "Product Price"]
         super().__init__(db, columns)
         self.table_name = "customer_orders"
         self.entity_name = "Customer Order"
+
+        search_label = QLabel("Search:")
+        self.search_textbox = QLineEdit()
+        self.search_textbox.textChanged.connect(self.search_customer_orders)
+
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_textbox)
+
+        self.layout().addLayout(search_layout)  # Add the search layout to the bottom
+
         self.reload_data()
 
     def reload_data(self):
         records = self.db.fetch_customer_orders()
+        self.load_data(records)
+
+    def search_customer_orders(self):
+        search_text = self.search_textbox.text()
+        query = '''
+            SELECT customers.id, customers.name, orders.date, orders.amount, products.name, products.price
+            FROM customers
+            JOIN orders ON customers.id = orders.customer_id
+            JOIN products ON orders.product_id = products.id
+            WHERE customers.name LIKE ?
+        '''
+        self.db.c.execute(query, (f"%{search_text}%",))
+        records = self.db.c.fetchall()
         self.load_data(records)
         
     # editing not supported for join tables
