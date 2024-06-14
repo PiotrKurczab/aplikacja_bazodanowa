@@ -100,7 +100,7 @@ class Database:
     def export_to_csv(self, file_name):
         tables = ["customers", "orders", "products", "suppliers"]
 
-        with open(file_name, 'w', newline='') as file:
+        with open(file_name, 'w', newline='', encoding="utf-8") as file:
             writer = csv.writer(file)
             for table in tables:
                 writer.writerow([table.capitalize()])
@@ -110,9 +110,12 @@ class Database:
                 writer.writerow([])
 
     def import_from_csv(self, file_name):
+        for table in ["customers", "orders", "products", "suppliers"]:
+            self.c.execute(f"DROP TABLE IF EXISTS {table}")
+        
         self.create_tables()
 
-        with open(file_name, 'r') as file:
+        with open(file_name, 'r', encoding="utf-8") as file:
             reader = csv.reader(file)
             table = None
 

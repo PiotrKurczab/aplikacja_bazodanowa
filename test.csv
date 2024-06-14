@@ -1,0 +1,24 @@
+Customers
+1,Jan Paweł II,michal.kowalski@gmail.com,501-234-567,Warszawa
+2,Anna Nowak,a.nowak@example.com,694-567-890,Kraków
+3,Piotr Wiśniewski,p.wisniewski@firma.pl,789-012-345,Gdańsk
+4,Katarzyna Wójcik,kwojcik@mail.com,234-567-890,Wrocław
+
+Orders
+1,1,3,2023-04-22,1,Wysłane
+2,2,1,2023-05-11,2,W realizacji
+3,4,2,2023-06-03,1,Dostarczone
+4,3,4,2023-05-28,3,Anulowane
+
+Products
+1,Smartfon XYZ Pro,Elektronika,2137.0,75
+2,Laptop GamePro 5000,Komputery,4999.0,20
+3,Odkurzacz Turbo 2000,AGD,799.99,50
+4,Zestaw garnków Premium,Dom i ogród,599.0,30
+
+Suppliers
+1,MegaElektro S.A.,Jan Kowalski,"ul. Przemysłowa 5, 00-123 Warszawa",kontakt@megaelektro.pl
+2,AGDMaster,Anna Wiśniewska,"ul. Handlowa 27, 80-200 Gdańsk",obslugarc@agdmaster.com
+3,DomBytHouse,Piotr Zieliński,"ul. Ogrodowa 12, 30-500 Kraków",kontakt@dombyt.pl
+4,TopKomputery,Katarzyna Adamczyk,"Al. Narodowa 31, 40-100 Wrocław",biuro@topkomputery.pl
+

@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QTabWidget, QPushButton, QHBoxLayout
+    QMainWindow, QWidget, QVBoxLayout, QTabWidget, QPushButton, QHBoxLayout, QFileDialog
 )
 from database import Database
 from tabs import CustomersTab, OrdersTab, ProductsTab, SuppliersTab, JoinTab
@@ -56,8 +56,13 @@ class MainWindow(QMainWindow):
             current_tab.delete_record()
 
     def export_database(self):
-        self.db.export_to_csv()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Export Database", "", "CSV Files (*.csv)")
+        if file_name:
+            self.db.export_to_csv(file_name)
 
     def import_database(self):
-        self.db.import_from_csv()
-        self.create_tabs()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Import Database", "", "CSV Files (*.csv)")
+        if file_name:
+            self.db.import_from_csv(file_name)
+            self.tab_widget.clear()
+            self.create_tabs()
