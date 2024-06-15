@@ -1,14 +1,91 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTableWidget, QLineEdit, QHBoxLayout, QLabel,
-    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QInputDialog, QFileDialog, QMessageBox, QTableWidgetItem, QPushButton, QComboBox, QSlider
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QInputDialog, QFileDialog, QMessageBox, QTableWidgetItem, QPushButton, QComboBox, QSlider, QListWidget, QCheckBox, QListWidgetItem
 )
 from PyQt6.QtCore import Qt
 
+class FilterWindow(QDialog):
+    def __init__(self, parent=None, filter_fields=None, prev_filters=None):
+        super().__init__(parent)
+        self.setWindowTitle("Filter")
+        self.filter_fields = filter_fields if filter_fields else {}
+        self.prev_filters = prev_filters if prev_filters else {}
+        self.init_ui()
+    
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+
+        form_layout = QFormLayout()
+        self.field_widgets = {}
+        self.checkboxes = {}
+        
+        for field, options in self.filter_fields.items():
+            checkbox = QCheckBox(self)
+            checkbox.setChecked(self.prev_filters.get(field, {}).get("enabled", False))
+            self.checkboxes[field] = checkbox
+            form_layout.addRow(checkbox)
+
+            if isinstance(options, list):
+                list_widget = QListWidget(self)
+                list_widget.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+                for option in options:
+                    item = QListWidgetItem(str(option))
+                    if str(option) in self.prev_filters.get(field, {}).get("values", []):
+                        item.setSelected(True)
+                    list_widget.addItem(item)
+                form_layout.addRow(QLabel(f"{field.capitalize()}:"), list_widget)
+                self.field_widgets[field] = list_widget
+            elif isinstance(options, tuple) and len(options) == 2:
+                min_val, max_val = options
+                min_input = QLineEdit(self)
+                max_input = QLineEdit(self)
+                min_input.setPlaceholderText(str(min_val))
+                max_input.setPlaceholderText(str(max_val))
+                min_input.setText(self.prev_filters.get(field, {}).get("min", ""))
+                max_input.setText(self.prev_filters.get(field, {}).get("max", ""))
+                slider_layout = QHBoxLayout()
+                slider_layout.addWidget(min_input)
+                slider_layout.addWidget(QLabel(" to "))
+                slider_layout.addWidget(max_input)
+                form_layout.addRow(QLabel(f"{field.capitalize()}:"), slider_layout)
+                self.field_widgets[field] = (min_input, max_input)
+        
+        layout.addLayout(form_layout)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+    
+    def get_filters(self):
+        filters = {}
+        for field, widget in self.field_widgets.items():
+            if self.checkboxes[field].isChecked():
+                if isinstance(widget, QListWidget):
+                    filters[field] = {
+                        "enabled": True,
+                        "values": [item.text() for item in widget.selectedItems()]
+                    }
+                elif isinstance(widget, tuple) and len(widget) == 2:
+                    min_val, max_val = widget
+                    filters[field] = {
+                        "enabled": True,
+                        "min": min_val.text(),
+                        "max": max_val.text()
+                    }
+            else:
+                filters[field] = {
+                    "enabled": False
+                }
+        return filters
+
+# Update BaseTab class and its derived classes to handle the new FilterWindow logic
 class BaseTab(QWidget):
     def __init__(self, db, columns):
         super().__init__()
         self.db = db
         self.columns = columns
+        self.filters = {}
         self.init_ui()
 
     def init_ui(self):
@@ -37,10 +114,10 @@ class BaseTab(QWidget):
 
     def open_filter_window(self):
         filter_fields = self.get_filter_fields()
-        filter_window = FilterWindow(self, filter_fields)
+        filter_window = FilterWindow(self, filter_fields, self.filters)
         if filter_window.exec() == QDialog.DialogCode.Accepted:
-            filters = filter_window.get_filters()
-            self.apply_filters(filters)
+            self.filters = filter_window.get_filters()
+            self.apply_filters(self.filters)
 
     def get_filter_fields(self):
         return {}
@@ -155,55 +232,6 @@ class BaseTab(QWidget):
     def search_data(self):
         pass
 
-class FilterWindow(QDialog):
-    def __init__(self, parent=None, filter_fields=None):
-        super().__init__(parent)
-        self.setWindowTitle("Filter")
-        self.filter_fields = filter_fields if filter_fields else {}
-        self.init_ui()
-    
-    def init_ui(self):
-        layout = QVBoxLayout(self)
-
-        form_layout = QFormLayout()
-        self.field_widgets = {}
-        
-        for field, options in self.filter_fields.items():
-            if isinstance(options, list):
-                combo = QComboBox(self)
-                combo.addItems([str(option) for option in options]) 
-                form_layout.addRow(QLabel(f"{field.capitalize()}:"), combo)
-                self.field_widgets[field] = combo
-            elif isinstance(options, tuple) and len(options) == 2:
-                min_val, max_val = options
-                slider_layout = QHBoxLayout()
-                slider = QSlider(Qt.Orientation.Horizontal)
-                slider.setMinimum(min_val)
-                slider.setMaximum(max_val)
-                slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-                slider.setTickInterval((max_val - min_val) // 10)
-                slider_layout.addWidget(QLabel(f"{min_val}"))
-                slider_layout.addWidget(slider)
-                slider_layout.addWidget(QLabel(f"{max_val}"))
-                form_layout.addRow(QLabel(f"{field.capitalize()}:"), slider_layout)
-                self.field_widgets[field] = slider
-        
-        layout.addLayout(form_layout)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-    
-    def get_filters(self):
-        filters = {}
-        for field, widget in self.field_widgets.items():
-            if isinstance(widget, QComboBox):
-                filters[field] = widget.currentText()
-            elif isinstance(widget, QSlider):
-                filters[field] = widget.value()
-        return filters
-
 class CustomersTab(BaseTab):
     def __init__(self, db):
         columns = ["ID", "Name", "Email", "Phone", "City"]
@@ -227,10 +255,13 @@ class CustomersTab(BaseTab):
         return {"City": cities}
 
     def apply_filters(self, filters):
-        city = filters.get("City", "")
-        query = "SELECT * FROM customers WHERE city = ?" if city else "SELECT * FROM customers"
-        params = (city,) if city else ()
-        self.db.c.execute(query, params)
+        city_filters = filters.get("City", {})
+        if city_filters.get("enabled", False):
+            city = city_filters.get("values", [])
+            query = f"SELECT * FROM customers WHERE city IN ({','.join(['?'] * len(city))})"
+            self.db.c.execute(query, city)
+        else:
+            self.db.c.execute("SELECT * FROM customers")
         records = self.db.c.fetchall()
         self.load_data(records)
 
@@ -251,12 +282,12 @@ class OrdersTab(BaseTab):
         customers = self.db.get_column_unique_values("orders", "customer_id")
         products = self.db.get_column_unique_values("orders", "product_id")
         statuses = self.db.get_column_unique_values("orders", "status")
+        min_amount, max_amount = self.db.get_min_max_value("orders", "amount")
         return {
             "Customer ID": customers,
             "Product ID": products,
             "Status": statuses,
-            "Date": (1, 31),  # Example date range
-            "Amount": (1, 100)  # Example amount range
+            "Amount": (min_amount, max_amount)
         }
 
     def apply_filters(self, filters):
@@ -264,15 +295,16 @@ class OrdersTab(BaseTab):
         params = []
 
         for field, value in filters.items():
-            if field in ["Customer ID", "Product ID", "Status"] and value:
-                query += f" AND {field.lower().replace(' ', '_')} = ?"
-                params.append(value)
-            elif field == "Date":
-                query += " AND date = ?"
-                params.append(value)
+            if field in ["Customer ID", "Product ID", "Status"]:
+                if value.get("enabled", False):
+                    query += f" AND {field.lower().replace(' ', '_')} IN ({','.join(['?'] * len(value['values']))})"
+                    params.extend(value['values'])
             elif field == "Amount":
-                query += " AND amount <= ?"
-                params.append(value)
+                if value.get("enabled", False):
+                    min_amount = value.get("min", 0)
+                    max_amount = value.get("max", float('inf'))
+                    query += " AND amount BETWEEN ? AND ?"
+                    params.extend([min_amount, max_amount])
         
         self.db.c.execute(query, params)
         records = self.db.c.fetchall()
@@ -299,22 +331,31 @@ class ProductsTab(BaseTab):
 
     def get_filter_fields(self):
         categories = self.db.get_column_unique_values("products", "category")
-        return {"Category": categories, "Price": (0, 10000), "Stock": (0, 100)}
+        min_price, max_price = self.db.get_min_max_value("products", "price")
+        min_stock, max_stock = self.db.get_min_max_value("products", "stock")
+        return {"Category": categories, "Price": (min_price, max_price), "Stock": (min_stock, max_stock)}
 
     def apply_filters(self, filters):
         query = "SELECT * FROM products WHERE 1=1"
         params = []
 
         for field, value in filters.items():
-            if field == "Category" and value:
-                query += f" AND {field.lower()} = ?"
-                params.append(value)
+            if field == "Category":
+                if value.get("enabled", False):
+                    query += f" AND {field.lower()} IN ({','.join(['?'] * len(value['values']))})"
+                    params.extend(value['values'])
             elif field == "Price":
-                query += " AND price <= ?"
-                params.append(value)
+                if value.get("enabled", False):
+                    min_price = value.get("min", 0)
+                    max_price = value.get("max", float('inf'))
+                    query += " AND price BETWEEN ? AND ?"
+                    params.extend([min_price, max_price])
             elif field == "Stock":
-                query += " AND stock <= ?"
-                params.append(value)
+                if value.get("enabled", False):
+                    min_stock = value.get("min", 0)
+                    max_stock = value.get("max", float('inf'))
+                    query += " AND stock BETWEEN ? AND ?"
+                    params.extend([min_stock, max_stock])
         
         self.db.c.execute(query, params)
         records = self.db.c.fetchall()
@@ -385,11 +426,11 @@ class JoinTab(BaseTab):
         self.load_data(records)
         
     def get_filter_fields(self):
+        min_amount, max_amount = self.db.get_min_max_value("orders", "amount")
+        min_price, max_price = self.db.get_min_max_value("products", "price")
         return {
-            "Order Date": (1, 31),  # Example date range
-            "Order Amount": (1, 100),  # Example amount range
-            "Product Name": self.db.get_column_unique_values("products", "name"),
-            "Product Price": (0, 10000)
+            "Order Amount": (min_amount, max_amount),
+            "Product Price": (min_price, max_price)
         }
 
     def apply_filters(self, filters):
@@ -402,18 +443,18 @@ class JoinTab(BaseTab):
         '''
         params = []
 
-        if "Order Date" in filters:
-            query += " AND orders.date = ?"
-            params.append(filters["Order Date"])
         if "Order Amount" in filters:
-            query += " AND orders.amount <= ?"
-            params.append(filters["Order Amount"])
-        if "Product Name" in filters:
-            query += " AND products.name = ?"
-            params.append(filters["Product Name"])
+            if filters["Order Amount"].get("enabled", False):
+                min_amount = filters["Order Amount"].get("min", 0)
+                max_amount = filters["Order Amount"].get("max", float('inf'))
+                query += " AND orders.amount BETWEEN ? AND ?"
+                params.extend([min_amount, max_amount])
         if "Product Price" in filters:
-            query += " AND products.price <= ?"
-            params.append(filters["Product Price"])
+            if filters["Product Price"].get("enabled", False):
+                min_price = filters["Product Price"].get("min", 0)
+                max_price = filters["Product Price"].get("max", float('inf'))
+                query += " AND products.price BETWEEN ? AND ?"
+                params.extend([min_price, max_price])
 
         self.db.c.execute(query, params)
         records = self.db.c.fetchall()

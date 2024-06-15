@@ -158,3 +158,7 @@ class Database(QObject):
     def get_column_unique_values(self, table, column):
         self.c.execute(f"SELECT DISTINCT {column} FROM {table}")
         return [row[0] for row in self.c.fetchall()]
+    
+    def get_min_max_value(self, table, column):
+        self.c.execute(f"SELECT MIN({column}), MAX({column}) FROM {table}")
+        return self.c.fetchone()
