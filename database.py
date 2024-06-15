@@ -155,9 +155,6 @@ class Database(QObject):
         self.c.execute(f"PRAGMA table_info({table})")
         return [info[1] for info in self.c.fetchall()]
 
-    def fetch_customer_orders(self):
-        self.c.execute('''SELECT customers.id, customers.name, orders.date, orders.amount, products.name, products.price
-                          FROM customers
-                          JOIN orders ON customers.id = orders.customer_id
-                          JOIN products ON orders.product_id = products.id''')
-        return self.c.fetchall()
+    def get_column_unique_values(self, table, column):
+        self.c.execute(f"SELECT DISTINCT {column} FROM {table}")
+        return [row[0] for row in self.c.fetchall()]

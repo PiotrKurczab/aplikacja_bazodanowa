@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTableWidget, QLineEdit, QHBoxLayout, QLabel,
-    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QInputDialog, QFileDialog, QMessageBox, QTableWidgetItem
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QInputDialog, QFileDialog, QMessageBox, QTableWidgetItem, QPushButton, QComboBox, QSlider
 )
 from PyQt6.QtCore import Qt
 
@@ -9,6 +9,9 @@ class BaseTab(QWidget):
         super().__init__()
         self.db = db
         self.columns = columns
+        self.init_ui()
+
+    def init_ui(self):
         self.table_widget = QTableWidget()
         self.table_widget.setSortingEnabled(True)
         self.table_widget.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -17,6 +20,33 @@ class BaseTab(QWidget):
         layout.addWidget(self.table_widget)
 
         self.table_widget.cellDoubleClicked.connect(self.cell_double_clicked)
+        
+        search_label = QLabel("Search:")
+        self.search_textbox = QLineEdit()
+        self.search_textbox.textChanged.connect(self.search_data)
+
+        self.filter_button = QPushButton("Filter")
+        self.filter_button.clicked.connect(self.open_filter_window)
+
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_textbox)
+        search_layout.addWidget(self.filter_button)
+
+        layout.addLayout(search_layout)
+
+    def open_filter_window(self):
+        filter_fields = self.get_filter_fields()
+        filter_window = FilterWindow(self, filter_fields)
+        if filter_window.exec() == QDialog.DialogCode.Accepted:
+            filters = filter_window.get_filters()
+            self.apply_filters(filters)
+
+    def get_filter_fields(self):
+        return {}
+
+    def apply_filters(self, filters):
+        pass
 
     def load_data(self, records):
         self.table_widget.setRowCount(len(records))
@@ -122,31 +152,85 @@ class BaseTab(QWidget):
         else:
             return 0, False
 
+    def search_data(self):
+        pass
+
+class FilterWindow(QDialog):
+    def __init__(self, parent=None, filter_fields=None):
+        super().__init__(parent)
+        self.setWindowTitle("Filter")
+        self.filter_fields = filter_fields if filter_fields else {}
+        self.init_ui()
+    
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+
+        form_layout = QFormLayout()
+        self.field_widgets = {}
+        
+        for field, options in self.filter_fields.items():
+            if isinstance(options, list):
+                combo = QComboBox(self)
+                combo.addItems([str(option) for option in options]) 
+                form_layout.addRow(QLabel(f"{field.capitalize()}:"), combo)
+                self.field_widgets[field] = combo
+            elif isinstance(options, tuple) and len(options) == 2:
+                min_val, max_val = options
+                slider_layout = QHBoxLayout()
+                slider = QSlider(Qt.Orientation.Horizontal)
+                slider.setMinimum(min_val)
+                slider.setMaximum(max_val)
+                slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+                slider.setTickInterval((max_val - min_val) // 10)
+                slider_layout.addWidget(QLabel(f"{min_val}"))
+                slider_layout.addWidget(slider)
+                slider_layout.addWidget(QLabel(f"{max_val}"))
+                form_layout.addRow(QLabel(f"{field.capitalize()}:"), slider_layout)
+                self.field_widgets[field] = slider
+        
+        layout.addLayout(form_layout)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+    
+    def get_filters(self):
+        filters = {}
+        for field, widget in self.field_widgets.items():
+            if isinstance(widget, QComboBox):
+                filters[field] = widget.currentText()
+            elif isinstance(widget, QSlider):
+                filters[field] = widget.value()
+        return filters
+
 class CustomersTab(BaseTab):
     def __init__(self, db):
         columns = ["ID", "Name", "Email", "Phone", "City"]
         super().__init__(db, columns)
         self.table_name = "customers"
         self.entity_name = "Customer"
-
-        search_label = QLabel("Search:")
-        self.search_textbox = QLineEdit()
-        self.search_textbox.textChanged.connect(self.search_customers)
-
-        search_layout = QHBoxLayout()
-        search_layout.addWidget(search_label)
-        search_layout.addWidget(self.search_textbox)
-
-        self.layout().addLayout(search_layout)
         self.reload_data()
 
     def reload_data(self):
         records = self.db.fetch_all_customers()
         self.load_data(records)
 
-    def search_customers(self):
+    def search_data(self):
         search_text = self.search_textbox.text()
         self.db.c.execute("SELECT * FROM customers WHERE name LIKE ?", (f"%{search_text}%",))
+        records = self.db.c.fetchall()
+        self.load_data(records)
+    
+    def get_filter_fields(self):
+        cities = self.db.get_column_unique_values("customers", "city")
+        return {"City": cities}
+
+    def apply_filters(self, filters):
+        city = filters.get("City", "")
+        query = "SELECT * FROM customers WHERE city = ?" if city else "SELECT * FROM customers"
+        params = (city,) if city else ()
+        self.db.c.execute(query, params)
         records = self.db.c.fetchall()
         self.load_data(records)
 
@@ -163,22 +247,43 @@ class OrdersTab(BaseTab):
         records = self.db.c.fetchall()
         self.load_data(records)
 
+    def get_filter_fields(self):
+        customers = self.db.get_column_unique_values("orders", "customer_id")
+        products = self.db.get_column_unique_values("orders", "product_id")
+        statuses = self.db.get_column_unique_values("orders", "status")
+        return {
+            "Customer ID": customers,
+            "Product ID": products,
+            "Status": statuses,
+            "Date": (1, 31),  # Example date range
+            "Amount": (1, 100)  # Example amount range
+        }
+
+    def apply_filters(self, filters):
+        query = "SELECT * FROM orders WHERE 1=1"
+        params = []
+
+        for field, value in filters.items():
+            if field in ["Customer ID", "Product ID", "Status"] and value:
+                query += f" AND {field.lower().replace(' ', '_')} = ?"
+                params.append(value)
+            elif field == "Date":
+                query += " AND date = ?"
+                params.append(value)
+            elif field == "Amount":
+                query += " AND amount <= ?"
+                params.append(value)
+        
+        self.db.c.execute(query, params)
+        records = self.db.c.fetchall()
+        self.load_data(records)
+
 class ProductsTab(BaseTab):
     def __init__(self, db):
         columns = ["ID", "Name", "Category", "Price", "Stock"]
         super().__init__(db, columns)
         self.table_name = "products"
         self.entity_name = "Product"
-
-        search_label = QLabel("Search:")
-        self.search_textbox = QLineEdit()
-        self.search_textbox.textChanged.connect(self.search_products)
-
-        search_layout = QHBoxLayout()
-        search_layout.addWidget(search_label)
-        search_layout.addWidget(self.search_textbox)
-
-        self.layout().addLayout(search_layout)
         self.reload_data()
 
     def reload_data(self):
@@ -186,9 +291,32 @@ class ProductsTab(BaseTab):
         records = self.db.c.fetchall()
         self.load_data(records)
 
-    def search_products(self):
+    def search_data(self):
         search_text = self.search_textbox.text()
         self.db.c.execute("SELECT * FROM products WHERE name LIKE ?", (f"%{search_text}%",))
+        records = self.db.c.fetchall()
+        self.load_data(records)
+
+    def get_filter_fields(self):
+        categories = self.db.get_column_unique_values("products", "category")
+        return {"Category": categories, "Price": (0, 10000), "Stock": (0, 100)}
+
+    def apply_filters(self, filters):
+        query = "SELECT * FROM products WHERE 1=1"
+        params = []
+
+        for field, value in filters.items():
+            if field == "Category" and value:
+                query += f" AND {field.lower()} = ?"
+                params.append(value)
+            elif field == "Price":
+                query += " AND price <= ?"
+                params.append(value)
+            elif field == "Stock":
+                query += " AND stock <= ?"
+                params.append(value)
+        
+        self.db.c.execute(query, params)
         records = self.db.c.fetchall()
         self.load_data(records)
 
@@ -221,7 +349,6 @@ class SuppliersTab(BaseTab):
         records = self.db.c.fetchall()
         self.load_data(records)
 
-
 class JoinTab(BaseTab):
     def __init__(self, db):
         columns = ["Customer ID", "Customer Name", "Order Date", "Order Amount", "Product Name", "Product Price"]
@@ -237,8 +364,7 @@ class JoinTab(BaseTab):
         search_layout.addWidget(search_label)
         search_layout.addWidget(self.search_textbox)
 
-        self.layout().addLayout(search_layout)  # Add the search layout to the bottom
-
+        self.layout().addLayout(search_layout)
         self.reload_data()
 
     def reload_data(self):
@@ -258,6 +384,37 @@ class JoinTab(BaseTab):
         records = self.db.c.fetchall()
         self.load_data(records)
         
-    # editing not supported for join tables
-    def cell_double_clicked(self, row, column):
-        pass
+    def get_filter_fields(self):
+        return {
+            "Order Date": (1, 31),  # Example date range
+            "Order Amount": (1, 100),  # Example amount range
+            "Product Name": self.db.get_column_unique_values("products", "name"),
+            "Product Price": (0, 10000)
+        }
+
+    def apply_filters(self, filters):
+        query = '''
+            SELECT customers.id, customers.name, orders.date, orders.amount, products.name, products.price
+            FROM customers
+            JOIN orders ON customers.id = orders.customer_id
+            JOIN products ON orders.product_id = products.id
+            WHERE 1=1
+        '''
+        params = []
+
+        if "Order Date" in filters:
+            query += " AND orders.date = ?"
+            params.append(filters["Order Date"])
+        if "Order Amount" in filters:
+            query += " AND orders.amount <= ?"
+            params.append(filters["Order Amount"])
+        if "Product Name" in filters:
+            query += " AND products.name = ?"
+            params.append(filters["Product Name"])
+        if "Product Price" in filters:
+            query += " AND products.price <= ?"
+            params.append(filters["Product Price"])
+
+        self.db.c.execute(query, params)
+        records = self.db.c.fetchall()
+        self.load_data(records)
