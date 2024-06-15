@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTableWidget, QLineEdit, QHBoxLayout, QLabel,
-    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QInputDialog, QFileDialog, QMessageBox, QTableWidgetItem, QPushButton, QComboBox, QSlider, QListWidget, QCheckBox, QListWidgetItem
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QInputDialog, QFileDialog, QMessageBox, QTableWidgetItem, QPushButton, QComboBox, QSlider, QListWidget, QCheckBox, QHBoxLayout, QListWidgetItem
 )
 from PyQt6.QtCore import Qt
 
@@ -20,10 +20,16 @@ class FilterWindow(QDialog):
         self.checkboxes = {}
         
         for field, options in self.filter_fields.items():
+            field_layout = QHBoxLayout()
             checkbox = QCheckBox(self)
             checkbox.setChecked(self.prev_filters.get(field, {}).get("enabled", False))
             self.checkboxes[field] = checkbox
-            form_layout.addRow(checkbox)
+
+            field_label = QLabel(f"{field.capitalize()}:")
+            field_layout.addWidget(checkbox)
+            field_layout.addWidget(field_label)
+            field_layout.addStretch(1)  # Add stretch to push the label and checkbox together
+            form_layout.addRow(field_layout)
 
             if isinstance(options, list):
                 list_widget = QListWidget(self)
@@ -33,7 +39,7 @@ class FilterWindow(QDialog):
                     if str(option) in self.prev_filters.get(field, {}).get("values", []):
                         item.setSelected(True)
                     list_widget.addItem(item)
-                form_layout.addRow(QLabel(f"{field.capitalize()}:"), list_widget)
+                form_layout.addRow(list_widget)
                 self.field_widgets[field] = list_widget
             elif isinstance(options, tuple) and len(options) == 2:
                 min_val, max_val = options
@@ -47,7 +53,7 @@ class FilterWindow(QDialog):
                 slider_layout.addWidget(min_input)
                 slider_layout.addWidget(QLabel(" to "))
                 slider_layout.addWidget(max_input)
-                form_layout.addRow(QLabel(f"{field.capitalize()}:"), slider_layout)
+                form_layout.addRow(slider_layout)
                 self.field_widgets[field] = (min_input, max_input)
         
         layout.addLayout(form_layout)
@@ -67,11 +73,11 @@ class FilterWindow(QDialog):
                         "values": [item.text() for item in widget.selectedItems()]
                     }
                 elif isinstance(widget, tuple) and len(widget) == 2:
-                    min_val, max_val = widget
+                    min_input, max_input = widget
                     filters[field] = {
                         "enabled": True,
-                        "min": min_val.text(),
-                        "max": max_val.text()
+                        "min": min_input.text(),
+                        "max": max_input.text()
                     }
             else:
                 filters[field] = {
@@ -367,16 +373,6 @@ class SuppliersTab(BaseTab):
         super().__init__(db, columns)
         self.table_name = "suppliers"
         self.entity_name = "Supplier"
-
-        search_label = QLabel("Search:")
-        self.search_textbox = QLineEdit()
-        self.search_textbox.textChanged.connect(self.search_suppliers)
-
-        search_layout = QHBoxLayout()
-        search_layout.addWidget(search_label)
-        search_layout.addWidget(self.search_textbox)
-
-        self.layout().addLayout(search_layout)
         self.reload_data()
 
     def reload_data(self):
