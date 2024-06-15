@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QTabWidget, QPushButton, QHBoxLayout, QFileDialog
 )
 from database import Database
-from tabs import CustomersTab, OrdersTab, ProductsTab, SuppliersTab, JoinTab
+from tabs.tabs import CustomersTab, OrdersTab, ProductsTab, SuppliersTab, JoinTab
 
 class MainWindow(QMainWindow):
     def __init__(self):
