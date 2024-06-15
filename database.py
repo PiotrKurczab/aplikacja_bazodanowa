@@ -20,7 +20,7 @@ class Database(QObject):
         - Populates initial data.
         """
         super().__init__()
-        self.conn = sqlite3.connect(':memory:')
+        self.conn = sqlite3.connect(":memory:")
         self.c = self.conn.cursor()
         self.create_tables()
         self.populate_initial_data()
