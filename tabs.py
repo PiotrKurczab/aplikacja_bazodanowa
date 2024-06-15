@@ -85,7 +85,6 @@ class FilterWindow(QDialog):
                 }
         return filters
 
-# Update BaseTab class and its derived classes to handle the new FilterWindow logic
 class BaseTab(QWidget):
     def __init__(self, db, columns):
         super().__init__()
@@ -252,24 +251,28 @@ class CustomersTab(BaseTab):
 
     def search_data(self):
         search_text = self.search_textbox.text()
-        self.db.c.execute("SELECT * FROM customers WHERE name LIKE ?", (f"%{search_text}%",))
+        filters = self.filters
+        query = "SELECT * FROM customers WHERE name LIKE ?"
+        params = [f"%{search_text}%"]
+        
+        city_filters = filters.get("City", {})
+        if city_filters.get("enabled", False):
+            city = city_filters.get("values", [])
+            if city:
+                query += f" AND city IN ({','.join(['?'] * len(city))})"
+                params.extend(city)
+        
+        self.db.c.execute(query, params)
         records = self.db.c.fetchall()
         self.load_data(records)
-    
+
     def get_filter_fields(self):
         cities = self.db.get_column_unique_values("customers", "city")
         return {"City": cities}
 
     def apply_filters(self, filters):
-        city_filters = filters.get("City", {})
-        if city_filters.get("enabled", False):
-            city = city_filters.get("values", [])
-            query = f"SELECT * FROM customers WHERE city IN ({','.join(['?'] * len(city))})"
-            self.db.c.execute(query, city)
-        else:
-            self.db.c.execute("SELECT * FROM customers")
-        records = self.db.c.fetchall()
-        self.load_data(records)
+        self.filters = filters
+        self.search_data()
 
 class OrdersTab(BaseTab):
     def __init__(self, db):
@@ -281,6 +284,45 @@ class OrdersTab(BaseTab):
 
     def reload_data(self):
         self.db.c.execute("SELECT * FROM orders")
+        records = self.db.c.fetchall()
+        self.load_data(records)
+
+    def search_data(self):
+        search_text = self.search_textbox.text()
+        filters = self.filters
+        query = "SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE name LIKE ?)"
+        params = [f"%{search_text}%"]
+
+        customer_filters = filters.get("Customer ID", {})
+        product_filters = filters.get("Product ID", {})
+        status_filters = filters.get("Status", {})
+        amount_filters = filters.get("Amount", {})
+
+        if customer_filters.get("enabled", False):
+            customers = customer_filters.get("values", [])
+            if customers:
+                query += f" AND customer_id IN ({','.join(['?'] * len(customers))})"
+                params.extend(customers)
+
+        if product_filters.get("enabled", False):
+            products = product_filters.get("values", [])
+            if products:
+                query += f" AND product_id IN ({','.join(['?'] * len(products))})"
+                params.extend(products)
+
+        if status_filters.get("enabled", False):
+            statuses = status_filters.get("values", [])
+            if statuses:
+                query += f" AND status IN ({','.join(['?'] * len(statuses))})"
+                params.extend(statuses)
+
+        if amount_filters.get("enabled", False):
+            min_amount = amount_filters.get("min", 0)
+            max_amount = amount_filters.get("max", float('inf'))
+            query += " AND amount BETWEEN ? AND ?"
+            params.extend([min_amount, max_amount])
+
+        self.db.c.execute(query, params)
         records = self.db.c.fetchall()
         self.load_data(records)
 
@@ -297,24 +339,8 @@ class OrdersTab(BaseTab):
         }
 
     def apply_filters(self, filters):
-        query = "SELECT * FROM orders WHERE 1=1"
-        params = []
-
-        for field, value in filters.items():
-            if field in ["Customer ID", "Product ID", "Status"]:
-                if value.get("enabled", False):
-                    query += f" AND {field.lower().replace(' ', '_')} IN ({','.join(['?'] * len(value['values']))})"
-                    params.extend(value['values'])
-            elif field == "Amount":
-                if value.get("enabled", False):
-                    min_amount = value.get("min", 0)
-                    max_amount = value.get("max", float('inf'))
-                    query += " AND amount BETWEEN ? AND ?"
-                    params.extend([min_amount, max_amount])
-        
-        self.db.c.execute(query, params)
-        records = self.db.c.fetchall()
-        self.load_data(records)
+        self.filters = filters
+        self.search_data()
 
 class ProductsTab(BaseTab):
     def __init__(self, db):
@@ -331,7 +357,33 @@ class ProductsTab(BaseTab):
 
     def search_data(self):
         search_text = self.search_textbox.text()
-        self.db.c.execute("SELECT * FROM products WHERE name LIKE ?", (f"%{search_text}%",))
+        filters = self.filters
+        query = "SELECT * FROM products WHERE name LIKE ?"
+        params = [f"%{search_text}%"]
+
+        category_filters = filters.get("Category", {})
+        price_filters = filters.get("Price", {})
+        stock_filters = filters.get("Stock", {})
+
+        if category_filters.get("enabled", False):
+            categories = category_filters.get("values", [])
+            if categories:
+                query += f" AND category IN ({','.join(['?'] * len(categories))})"
+                params.extend(categories)
+
+        if price_filters.get("enabled", False):
+            min_price = price_filters.get("min", 0)
+            max_price = price_filters.get("max", float('inf'))
+            query += " AND price BETWEEN ? AND ?"
+            params.extend([min_price, max_price])
+
+        if stock_filters.get("enabled", False):
+            min_stock = stock_filters.get("min", 0)
+            max_stock = stock_filters.get("max", float('inf'))
+            query += " AND stock BETWEEN ? AND ?"
+            params.extend([min_stock, max_stock])
+
+        self.db.c.execute(query, params)
         records = self.db.c.fetchall()
         self.load_data(records)
 
@@ -342,30 +394,8 @@ class ProductsTab(BaseTab):
         return {"Category": categories, "Price": (min_price, max_price), "Stock": (min_stock, max_stock)}
 
     def apply_filters(self, filters):
-        query = "SELECT * FROM products WHERE 1=1"
-        params = []
-
-        for field, value in filters.items():
-            if field == "Category":
-                if value.get("enabled", False):
-                    query += f" AND {field.lower()} IN ({','.join(['?'] * len(value['values']))})"
-                    params.extend(value['values'])
-            elif field == "Price":
-                if value.get("enabled", False):
-                    min_price = value.get("min", 0)
-                    max_price = value.get("max", float('inf'))
-                    query += " AND price BETWEEN ? AND ?"
-                    params.extend([min_price, max_price])
-            elif field == "Stock":
-                if value.get("enabled", False):
-                    min_stock = value.get("min", 0)
-                    max_stock = value.get("max", float('inf'))
-                    query += " AND stock BETWEEN ? AND ?"
-                    params.extend([min_stock, max_stock])
-        
-        self.db.c.execute(query, params)
-        records = self.db.c.fetchall()
-        self.load_data(records)
+        self.filters = filters
+        self.search_data()
 
 class SuppliersTab(BaseTab):
     def __init__(self, db):
@@ -375,14 +405,18 @@ class SuppliersTab(BaseTab):
         self.entity_name = "Supplier"
         self.reload_data()
 
+    def init_ui(self):
+        self.table_widget = QTableWidget()
+        self.table_widget.setSortingEnabled(True)
+        self.table_widget.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.table_widget)
+
+        self.table_widget.cellDoubleClicked.connect(self.cell_double_clicked)
+
     def reload_data(self):
         self.db.c.execute("SELECT * FROM suppliers")
-        records = self.db.c.fetchall()
-        self.load_data(records)
-
-    def search_suppliers(self):
-        search_text = self.search_textbox.text()
-        self.db.c.execute("SELECT * FROM suppliers WHERE name LIKE ?", (f"%{search_text}%",))
         records = self.db.c.fetchall()
         self.load_data(records)
 
@@ -392,24 +426,15 @@ class JoinTab(BaseTab):
         super().__init__(db, columns)
         self.table_name = "customer_orders"
         self.entity_name = "Customer Order"
-
-        search_label = QLabel("Search:")
-        self.search_textbox = QLineEdit()
-        self.search_textbox.textChanged.connect(self.search_customer_orders)
-
-        search_layout = QHBoxLayout()
-        search_layout.addWidget(search_label)
-        search_layout.addWidget(self.search_textbox)
-
-        self.layout().addLayout(search_layout)
         self.reload_data()
 
     def reload_data(self):
         records = self.db.fetch_customer_orders()
         self.load_data(records)
 
-    def search_customer_orders(self):
+    def search_data(self):
         search_text = self.search_textbox.text()
+        filters = self.filters
         query = '''
             SELECT customers.id, customers.name, orders.date, orders.amount, products.name, products.price
             FROM customers
@@ -417,10 +442,27 @@ class JoinTab(BaseTab):
             JOIN products ON orders.product_id = products.id
             WHERE customers.name LIKE ?
         '''
-        self.db.c.execute(query, (f"%{search_text}%",))
+        params = [f"%{search_text}%"]
+
+        amount_filters = filters.get("Order Amount", {})
+        price_filters = filters.get("Product Price", {})
+
+        if amount_filters.get("enabled", False):
+            min_amount = amount_filters.get("min", 0)
+            max_amount = amount_filters.get("max", float('inf'))
+            query += " AND orders.amount BETWEEN ? AND ?"
+            params.extend([min_amount, max_amount])
+
+        if price_filters.get("enabled", False):
+            min_price = price_filters.get("min", 0)
+            max_price = price_filters.get("max", float('inf'))
+            query += " AND products.price BETWEEN ? AND ?"
+            params.extend([min_price, max_price])
+
+        self.db.c.execute(query, params)
         records = self.db.c.fetchall()
         self.load_data(records)
-        
+
     def get_filter_fields(self):
         min_amount, max_amount = self.db.get_min_max_value("orders", "amount")
         min_price, max_price = self.db.get_min_max_value("products", "price")
@@ -430,28 +472,15 @@ class JoinTab(BaseTab):
         }
 
     def apply_filters(self, filters):
-        query = '''
-            SELECT customers.id, customers.name, orders.date, orders.amount, products.name, products.price
-            FROM customers
-            JOIN orders ON customers.id = orders.customer_id
-            JOIN products ON orders.product_id = products.id
-            WHERE 1=1
-        '''
-        params = []
-
-        if "Order Amount" in filters:
-            if filters["Order Amount"].get("enabled", False):
-                min_amount = filters["Order Amount"].get("min", 0)
-                max_amount = filters["Order Amount"].get("max", float('inf'))
-                query += " AND orders.amount BETWEEN ? AND ?"
-                params.extend([min_amount, max_amount])
-        if "Product Price" in filters:
-            if filters["Product Price"].get("enabled", False):
-                min_price = filters["Product Price"].get("min", 0)
-                max_price = filters["Product Price"].get("max", float('inf'))
-                query += " AND products.price BETWEEN ? AND ?"
-                params.extend([min_price, max_price])
-
-        self.db.c.execute(query, params)
-        records = self.db.c.fetchall()
-        self.load_data(records)
+        self.filters = filters
+        self.search_data()
+        
+    # Override the following methods to disable editing, adding, and deleting records
+    def cell_double_clicked(self, row, column):
+        QMessageBox.warning(self, "Warning", "Editing is not allowed in this tab.")
+        
+    def add_record(self):
+        QMessageBox.warning(self, "Warning", "Adding is not allowed in this tab.")
+        
+    def delete_record(self):
+        QMessageBox.warning(self, "Warning", "Deleting is not allowed in this tab.")
